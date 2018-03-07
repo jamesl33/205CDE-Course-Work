@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <title>title</title>
+    </head>
+    <body>
+        <form id="downloadForm" action="" method="post" encType="multipart/form-data">
+            <input type="password" name="password" required>
+            <input type="submit">
+        </form>
+    </body>
+</html>
