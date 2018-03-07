@@ -10,6 +10,7 @@ const fs = require('fs');
 const glob = require('glob');
 const path = require('path').posix;
 const rimraf = require('rimraf');
+const routeRemover = require('./js/express-route-remover.js');
 const schedule = require('node-schedule');
 const uuid = require('uuid/v1');
 
@@ -19,22 +20,6 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(fileUpload());
-
-function removeTempUrl(routePath) {
-    app._router.stack.map((route, index) => {
-        if (route.path == routePath) {
-            app._router.stack.splice(index, 1);
-        }
-
-        try {
-            if (route.route.path == routePath) {
-                app._router.stack.splice(index, 1);
-            }
-        } catch (Typeerr) {
-
-        }
-    });
-}
 
 function addTempUrl(id, filePath) {
     app.get('/share/' + id, (req, res) => {
@@ -69,8 +54,8 @@ function addTempUrl(id, filePath) {
                     }
                 });
 
-                removeTempUrl('/share/' + id);
-                removeTempUrl('/download/' + id);
+                routeRemover.removeRouteByPath(app, '/share/' + id);
+                routeRemover.removeRouteByPath(app, '/download/' + id);
 
                 database.removePassword(filePath);
             });
@@ -162,7 +147,7 @@ schedule.scheduleJob('0 * * * *', () => {
                 route.shift();
                 route.shift();
 
-                removeTempUrl('/' + route.join('-'));
+                routeRemover.removeRouteByPath(app, '/' + route.join('-'));
             });
         });
     });
