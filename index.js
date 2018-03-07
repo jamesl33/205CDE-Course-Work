@@ -32,16 +32,14 @@ app.use(fileUpload());
  */
 function serveStaticFiles(directory) {
     fs.readdirSync(directory).map(page => {
-        if (page.split('.').pop() === 'html') {
-            if (page === 'index.html') {
-                app.get('/', (req, res) => {
-                    res.sendFile(path.join(directory, page));
-                });
-            } else {
-                app.get(path.join('/', page), (req, res) => {
-                    res.sendFile(path.join(directory, page));
-                });
-            }
+        if (page === 'index.html') {
+            app.get('/', (req, res) => {
+                res.sendFile(path.join(directory, page));
+            });
+        } else {
+            app.get(path.join('/', page), (req, res) => {
+                res.sendFile(path.join(directory, page));
+            });
         }
     });
 }
@@ -65,28 +63,24 @@ function addTempRoutes(id, filePath) {
     });
 
     app.post('/download/' + id, (req, res) => {
-        if (database.checkPassword(filePath, req.body.password)) {
-            encryptor.decryptFile(filePath + '.data', filePath, req.body.password, (error) => {
+        const password = req.body.password;
+
+        if (database.checkPassword(filePath, password)) {
+            encryptor.decryptFile(filePath + '.data', filePath, password, (error) => {
                 if (error) {
-                    throw error;
+                    console.error(error);
                 }
 
-                res.download(filePath, (error) => {
-                    if (error) {
-                        throw error;
-                    }
-                });
+                res.download(filePath);
+                database.removePassword(filePath);
+                routeRemover.removeRouteByPath(app, '/download/' + id);
+                routeRemover.removeRouteByPath(app, '/share/' + id);
 
                 rimraf(path.dirname(filePath), (error) => {
                     if (error) {
-                        throw error;
+                        console.error(error);
                     }
                 });
-
-                routeRemover.removeRouteByPath(app, '/share/' + id);
-                routeRemover.removeRouteByPath(app, '/download/' + id);
-
-                database.removePassword(filePath);
             });
         } else {
             res.redirect('/download/' + id);
@@ -103,40 +97,34 @@ function addTempRoutes(id, filePath) {
 app.post(path.join('/', 'upload'), (req, res) => {
     const id = uuid();
     const storageDir = path.join('/tmp/storage-') + id;
-
     const file = req.files.file;
     const password = req.body.password;
-
     const filePath = path.join(storageDir, file.name);
 
     fs.mkdir(storageDir, (error) => {
         if (error) {
-            throw error;
+            console.error(error);
         }
     });
 
     file.mv(filePath, (error) => {
         if (error) {
-            throw error;
-        }
-    });
-
-    encryptor.encryptFile(filePath, filePath + '.data', password, function(error) {
-        if (error) {
-            throw error;
+            console.error(error);
         }
 
-        fs.unlink(filePath, (error) => {
-            if (error) {
-                throw error;
+        encryptor.encryptFile(filePath, filePath + '.data', password, (error) => {
+            if (!error) {
+                fs.unlink(filePath, (error) => {
+                    if (error) {
+                        console.error(error);
+                    }
+                });
             }
         });
     });
 
     database.addPassword(filePath, password);
-
     addTempRoutes(id, filePath);
-
     res.redirect('/share/' + id);
 });
 
@@ -149,13 +137,13 @@ app.post(path.join('/', 'upload'), (req, res) => {
 function cleanupStorageDir(storageDir, prefix) {
     glob(`${path.join(storageDir, prefix)}*`, (error, files) => {
         if (error) {
-            throw error;
+            console.error(error);
         }
 
         files.map(file => {
             rimraf(file, (error) => {
                 if (error) {
-                    throw error;
+                    console.error(error);
                 }
             });
         });
@@ -173,13 +161,13 @@ function startGarbageCollector(storageDir, prefix, maxAge=3600000) {
     schedule.scheduleJob('0 * * * *', () => {
         glob(`${path.posix.join(storageDir, prefix)}*`, (error, files) => {
             if (error) {
-                throw error;
+                console.error(error);
             }
 
             files.map(filePath => {
                 fs.stat(filePath, (error, stats) => {
                     if (error) {
-                        throw error;
+                        console.error(error);
                     }
 
                     let timeNow = new Date().getTime();
@@ -188,7 +176,7 @@ function startGarbageCollector(storageDir, prefix, maxAge=3600000) {
                     if (timeNow > fileTime) {
                         rimraf(filePath, (error) => {
                             if (error) {
-                                throw error;
+                                console.error(error);
                             }
                         });
                     }
