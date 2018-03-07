@@ -3,6 +3,7 @@
 const bodyParser = require('body-parser');
 const cheerio = require('cheerio');
 const database = require('./js/database.js');
+const encryptor = require('file-encryptor');
 const express = require('express');
 const fileUpload = require('express-fileupload');
 const fs = require('fs');
@@ -47,22 +48,28 @@ function addTempUrl(id, filePath) {
 
     app.post('/download/' + id, (req, res) => {
         if (database.checkPassword(filePath, req.body.password)) {
-            res.download(filePath, (error) => {
+            encryptor.decryptFile(filePath + '.data', filePath, req.body.password, (error) => {
                 if (error) {
                     throw error;
                 }
+
+                res.download(filePath, (error) => {
+                    if (error) {
+                        throw error;
+                    }
+                });
+
+                rimraf(path.dirname(filePath), (error) => {
+                    if (error) {
+                        throw error;
+                    }
+                });
+
+                removeTempUrl('/share/' + id);
+                removeTempUrl('/download/' + id);
+
+                database.removePassword(filePath);
             });
-
-            rimraf(path.dirname(filePath), (error) => {
-                if (error) {
-                    throw error;
-                }
-            });
-
-            removeTempUrl('/share/' + id);
-            removeTempUrl('/download/' + id);
-
-            database.removePassword(filePath);
         } else {
             res.redirect('/download/' + id);
         }
@@ -102,6 +109,18 @@ app.post(path.join('/', 'upload'), (req, res) => {
         if (error) {
             throw error;
         }
+    });
+
+    encryptor.encryptFile(filePath, filePath + '.data', password, function(error) {
+        if (error) {
+            throw error;
+        }
+
+        fs.unlink(filePath, (error) => {
+            if (error) {
+                throw error;
+            }
+        });
     });
 
     database.addPassword(filePath, password);
