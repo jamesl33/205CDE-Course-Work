@@ -1,4 +1,15 @@
+/**
+ * @author James Lee
+ * A simple module to remove routes created using app.VERB.
+ */
+
 module.exports = {
+    /**
+     * @name removeRouteByPath
+     * @description Remove a route from the express router {app._router}
+     * @param app The express object as created with {const app = express()}
+     * @param path The path which should be removed
+     */
     removeRouteByPath: (app, path) => {
         app._router.stack.map((route, index) => {
             if (route.path == path) {
