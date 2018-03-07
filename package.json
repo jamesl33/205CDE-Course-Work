@@ -1,0 +1,28 @@
+{
+  "name": "205cde-course-work",
+  "version": "1.0.0",
+  "description": "Simple file sharing website with a focus on privacy.",
+  "main": "index.js",
+  "dependencies": {
+    "bcrypt": "^1.0.3",
+    "better-sqlite3": "^4.1.0",
+    "body-parser": "^1.18.2",
+    "cheerio": "^1.0.0-rc.2",
+    "express": "^4.16.2",
+    "express-fileupload": "^0.4.0",
+    "glob": "^7.1.2",
+    "node-schedule": "^1.3.0",
+    "rimraf": "^2.6.2",
+    "uuid": "^3.2.1"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.coventry.ac.uk/leej64/205CDE-Course-Work.git"
+  },
+  "author": "jamesl33",
+  "license": "UNLICENSED"
+}
