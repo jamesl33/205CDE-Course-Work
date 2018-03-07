@@ -21,10 +21,14 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use(fileUpload());
 
 function removeTempUrl(routePath) {
-    app._router.stack.map((route, index, routes) => {
+    app._router.stack.map((route, index) => {
+        if (route.path == routePath) {
+            app._router.stack.splice(index, 1);
+        }
+
         try {
             if (route.route.path == routePath) {
-                routes.splice(index, 1);
+                app._router.stack.splice(index, 1);
             }
         } catch (Typeerr) {
 
