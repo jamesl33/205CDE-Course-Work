@@ -9,6 +9,7 @@
     "body-parser": "^1.18.2",
     "cheerio": "^1.0.0-rc.2",
     "express": "^4.16.2",
+    "express-es6-template-engine": "^2.0.3",
     "express-fileupload": "^0.4.0",
     "file-encryptor": "^0.1.1",
     "glob": "^7.1.2",

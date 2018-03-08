@@ -6,9 +6,9 @@
  */
 
 const bodyParser = require('body-parser');
-const cheerio = require('cheerio');
 const database = require('./js/database.js');
 const encryptor = require('file-encryptor');
+const es6Renderer = require('express-es6-template-engine');
 const express = require('express');
 const fileUpload = require('express-fileupload');
 const fs = require('fs');
@@ -21,9 +21,12 @@ const uuid = require('uuid/v1');
 
 const app = express();
 
+app.engine('html', es6Renderer);
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(fileUpload());
+
+app.set('view engine', 'html');
 
 /**
  * @name serveStaticFiles
@@ -50,16 +53,19 @@ function serveStaticFiles(directory) {
  */
 function addTempRoutes(id, filePath) {
     app.get('/share/' + id, (req, res) => {
-        const $ = cheerio.load(fs.readFileSync(path.join('pages', 'dynamic', 'share.html')));
-        $('#download_url').text('/share/' + id);
-        $('#download_link').attr('href', '/download/' + id);
-        res.send($.html());
+        res.render(path.join(__dirname, 'pages', 'dynamic', 'share.html'), {
+            locals: {
+                downloadUrl: `/download/${id}`
+            }
+        });
     });
 
     app.get('/download/' + id, (req, res) => {
-        const $ = cheerio.load(fs.readFileSync(path.join('pages', 'dynamic', 'download.html')));
-        $('#download_form').attr('action', '/download/' + id);
-        res.send($.html());
+        res.render(path.join(__dirname, 'pages', 'dynamic', 'download.html'), {
+            locals: {
+                downloadUrl: `/download/${id}`
+            }
+        });
     });
 
     app.post('/download/' + id, (req, res) => {
