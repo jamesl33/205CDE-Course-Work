@@ -5,28 +5,30 @@
  * A simple file sharing application with a focus on privacy.
  */
 
-const bodyParser = require('body-parser');
-const database = require('./js/database.js');
-const encryptor = require('file-encryptor');
-const es6Renderer = require('express-es6-template-engine');
-const express = require('express');
-const fileUpload = require('express-fileupload');
-const fs = require('fs');
-const glob = require('glob');
-const path = require('path').posix;
-const rimraf = require('rimraf');
-const routeRemover = require('./js/express-route-remover.js');
-const schedule = require('node-schedule');
-const uuid = require('uuid/v1');
+'use strict'
 
-const app = express();
+const bodyParser = require('body-parser')
+const database = require('./js/database.js')
+const encryptor = require('file-encryptor')
+const es6Renderer = require('express-es6-template-engine')
+const express = require('express')
+const fileUpload = require('express-fileupload')
+const fs = require('fs')
+const glob = require('glob')
+const path = require('path').posix
+const rimraf = require('rimraf')
+const routeRemover = require('./js/express-route-remover.js')
+const schedule = require('node-schedule')
+const uuid = require('uuid/v1')
 
-app.engine('html', es6Renderer);
-app.use(bodyParser.urlencoded({extended: true}));
-app.use(express.static(path.join(__dirname, 'public')));
-app.use(fileUpload());
+const app = express()
 
-app.set('view engine', 'html');
+app.engine('html', es6Renderer)
+app.use(bodyParser.urlencoded({extended: true}))
+app.use(express.static(path.join(__dirname, 'public')))
+app.use(fileUpload())
+
+app.set('view engine', 'html')
 
 /**
  * @name serveStaticFiles
@@ -34,17 +36,17 @@ app.set('view engine', 'html');
  * @param {string} directory
  */
 function serveStaticFiles(directory) {
-    fs.readdirSync(directory).map(page => {
-        if (page === 'index.html') {
-            app.get('/', (req, res) => {
-                res.sendFile(path.join(directory, page));
-            });
-        } else {
-            app.get(path.join('/', page), (req, res) => {
-                res.sendFile(path.join(directory, page));
-            });
-        }
-    });
+	fs.readdirSync(directory).map(page => {
+		if (page === 'index.html') {
+			app.get('/', (req, res) => {
+				res.sendFile(path.join(directory, page))
+			})
+		} else {
+			app.get(path.join('/', page), (req, res) => {
+				res.sendFile(path.join(directory, page))
+			})
+		}
+	})
 }
 
 /**
@@ -52,46 +54,46 @@ function serveStaticFiles(directory) {
  * @description Creates the temporary routes which are relevent to accessing and sharing a file.
  */
 function addTempRoutes(id, filePath) {
-    app.get('/share/' + id, (req, res) => {
-        res.render(path.join(__dirname, 'pages', 'dynamic', 'share.html'), {
-            locals: {
-                downloadUrl: `/download/${id}`
-            }
-        });
-    });
+	app.get('/share/' + id, (req, res) => {
+		res.render(path.join(__dirname, 'pages', 'dynamic', 'share.html'), {
+			locals: {
+				downloadUrl: `/download/${id}`
+			}
+		})
+	})
 
-    app.get('/download/' + id, (req, res) => {
-        res.render(path.join(__dirname, 'pages', 'dynamic', 'download.html'), {
-            locals: {
-                downloadUrl: `/download/${id}`
-            }
-        });
-    });
+	app.get('/download/' + id, (req, res) => {
+		res.render(path.join(__dirname, 'pages', 'dynamic', 'download.html'), {
+			locals: {
+				downloadUrl: `/download/${id}`
+			}
+		})
+	})
 
-    app.post('/download/' + id, (req, res) => {
-        const password = req.body.password;
+	app.post('/download/' + id, (req, res) => {
+		const password = req.body.password
 
-        if (database.checkPassword(filePath, password)) {
-            encryptor.decryptFile(filePath + '.data', filePath, password, (error) => {
-                if (error) {
-                    console.error(error);
-                }
+		if (database.checkPassword(filePath, password)) {
+			encryptor.decryptFile(filePath + '.data', filePath, password, (error) => {
+				if (error) {
+					console.error(error)
+				}
 
-                res.download(filePath);
-                database.removePassword(filePath);
-                routeRemover.removeRouteByPath(app, '/download/' + id);
-                routeRemover.removeRouteByPath(app, '/share/' + id);
+				res.download(filePath)
+				database.removePassword(filePath)
+				routeRemover.removeRouteByPath(app, '/download/' + id)
+				routeRemover.removeRouteByPath(app, '/share/' + id)
 
-                rimraf(path.dirname(filePath), (error) => {
-                    if (error) {
-                        console.error(error);
-                    }
-                });
-            });
-        } else {
-            res.redirect('/download/' + id);
-        }
-    });
+				rimraf(path.dirname(filePath), (error) => {
+					if (error) {
+						console.error(error)
+					}
+				})
+			})
+		} else {
+			res.redirect('/download/' + id)
+		}
+	})
 }
 
 /**
@@ -101,116 +103,118 @@ function addTempRoutes(id, filePath) {
  * @param {string} password
  */
 app.post(path.join('/', 'upload'), (req, res) => {
-    const id = uuid();
-    const storageDir = path.join('/tmp/storage-') + id;
-    const file = req.files.file;
-    const password = req.body.password;
-    const filePath = path.join(storageDir, file.name);
+	const id = uuid()
+	const storageDir = path.join('/tmp/storage-') + id
+	const file = req.files.file
+	const password = req.body.password
+	const filePath = path.join(storageDir, file.name)
+	const saltRounds = 10
 
-    fs.mkdir(storageDir, (error) => {
-        if (error) {
-            console.error(error);
-        }
-    });
+	fs.mkdir(storageDir, (error) => {
+		if (error) {
+			console.error(error)
+		}
+	})
 
-    file.mv(filePath, (error) => {
-        if (error) {
-            console.error(error);
-        }
+	file.mv(filePath, (error) => {
+		if (error) {
+			console.error(error)
+		}
 
-        encryptor.encryptFile(filePath, filePath + '.data', password, (error) => {
-            if (!error) {
-                fs.unlink(filePath, (error) => {
-                    if (error) {
-                        console.error(error);
-                    }
-                });
-            }
-        });
-    });
+		encryptor.encryptFile(filePath, filePath + '.data', password, (error) => {
+			if (!error) {
+				fs.unlink(filePath, (error) => {
+					if (error) {
+						console.error(error)
+					}
+				})
+			}
+		})
+	})
 
-    database.addPassword(filePath, password);
-    addTempRoutes(id, filePath);
-    res.redirect('/share/' + id);
-});
+	database.addPassword(filePath, password, saltRounds)
+	addTempRoutes(id, filePath)
+	res.redirect('/share/' + id)
+})
 
 /**
  * @name cleanupStorageDir
  * @description Remove any storage directories from the last time that the server was run.
- * @param {string} storageDir Directory to search in
- * @param {string} prefix Prefix for the storage files {default: storage-}
+ * @param {string} storageDir Directory to search in.
+ * @param {string} prefix Prefix for the storage files {default: storage-}.
  */
 function cleanupStorageDir(storageDir, prefix) {
-    glob(`${path.join(storageDir, prefix)}*`, (error, files) => {
-        if (error) {
-            console.error(error);
-        }
+	glob(`${path.join(storageDir, prefix)}*`, (error, files) => {
+		if (error) {
+			console.error(error)
+		}
 
-        files.map(file => {
-            rimraf(file, (error) => {
-                if (error) {
-                    console.error(error);
-                }
-            });
-        });
-    });
+		files.map(file => {
+			rimraf(file, (error) => {
+				if (error) {
+					console.error(error)
+				}
+			})
+		})
+	})
 }
 
 /**
  * @name startGarbageCollector
  * @description Start the scheduled job which cleans up downloads which have been unclaimed for a set amount of time.
- * @param {string} storageDir Directory to search in
- * @param {string} prefix Prefix for the storage files {default: storage-}
- * @param {int} maxAge Longest amount of time a file can be hosted {default: hour}
+ * @param {string} storageDir Directory to search in.
+ * @param {string} prefix Prefix for the storage files {default: storage-}.
+ * @param {int} maxAge Longest amount of time a file can be hosted {default: hour}.
  */
-function startGarbageCollector(storageDir, prefix, maxAge=3600000) {
-    schedule.scheduleJob('0 * * * *', () => {
-        glob(`${path.posix.join(storageDir, prefix)}*`, (error, files) => {
-            if (error) {
-                console.error(error);
-            }
+function startGarbageCollector(storageDir, prefix, maxAge) {
+	schedule.scheduleJob('0 * * * *', () => {
+		glob(`${path.posix.join(storageDir, prefix)}*`, (error, files) => {
+			if (error) {
+				console.error(error)
+			}
 
-            files.map(filePath => {
-                fs.stat(filePath, (error, stats) => {
-                    if (error) {
-                        console.error(error);
-                    }
+			files.map(filePath => {
+				fs.stat(filePath, (error, stats) => {
+					if (error) {
+						console.error(error)
+					}
 
-                    let timeNow = new Date().getTime();
-                    let fileTime = new Date(stats.ctime).getTime() + maxAge;
+					const timeNow = new Date().getTime()
+					const fileTime = new Date(stats.ctime).getTime() + maxAge
 
-                    if (timeNow > fileTime) {
-                        rimraf(filePath, (error) => {
-                            if (error) {
-                                console.error(error);
-                            }
-                        });
-                    }
+					if (timeNow > fileTime) {
+						rimraf(filePath, (error) => {
+							if (error) {
+								console.error(error)
+							}
+						})
+					}
 
-                    let route = filePath.split('-');
+					const route = filePath.split('-')
 
-                    route.shift();
-                    route.shift();
+					route.shift()
+					route.shift()
 
-                    routeRemover.removeRouteByPath(app, '/' + route.join('-'));
+					routeRemover.removeRouteByPath(app, '/' + route.join('-'))
 
-                    fs.readdirSync(filePath).map(file => {
-                        database.removePassword(file);
-                    });
-                });
-            });
-        });
-    });
+					fs.readdirSync(filePath).map(file => {
+						database.removePassword(file)
+					})
+				})
+			})
+		})
+	})
 }
 
-const port = 8080;
-const storageDir = '/tmp/';
-const prefix = 'storage-';
+const maxAge = 3600000
+const port = 8080
+const prefix = 'storage-'
+const storageDir = '/tmp/'
 
 app.listen(port, () => {
-    cleanupStorageDir(storageDir, prefix);
-    startGarbageCollector(storageDir, prefix);
-    database.recreateDatabase();
-    serveStaticFiles(path.join(__dirname, 'pages', 'static'));
-    console.log(`app listening on port ${port}`);
-});
+	cleanupStorageDir(storageDir, prefix)
+	startGarbageCollector(storageDir, prefix, maxAge)
+	database.recreateDatabase()
+	serveStaticFiles(path.join(__dirname, 'pages', 'static'))
+	console.log(`app listening on port ${port}`)
+})
