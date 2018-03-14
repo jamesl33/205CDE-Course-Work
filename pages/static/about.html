@@ -4,7 +4,6 @@
         <meta charset="UTF-8">
         <title>Private Share</title>
         <link rel="stylesheet" type="text/css" href="/css/styles.css">
-        <script src="/js/upload-form.js" type="text/javascript"></script>
     </head>
     <body>
         <nav class="nav main-nav">
@@ -14,16 +13,7 @@
             </ul>
         </nav>
 
-        <div class="upload-form">
-            <form action="/upload" method="post" encType="multipart/form-data">
-                <input id="formFiles" type="file" name="file" onchange="updateUploadForm();"/>
-                <p id="formInfo">Drag your files here or click in this area!</p>
-                <input type="password" name="password" required/>
-                <input type="submit" required/>
-            </form>
-        </div>
-
-        <footer class="fixed">
+        <footer>
             <nav class="nav footer-nav">
                 <ul>
                     <li><a href="https://github.coventry.ac.uk/leej64/205CDE-Course-Work">GitHub</a></li>

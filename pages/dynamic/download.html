@@ -2,12 +2,34 @@
 <html>
     <head>
         <meta charset="UTF-8">
-        <title></title>
+        <title>Private Share</title>
+        <link rel="stylesheet" type="text/css" href="/css/styles.css">
     </head>
     <body>
-        <form id="downloadForm" action="" method="post" encType="multipart/form-data">
-            <input type="password" name="password" required>
-            <input type="submit">
-        </form>
+        <nav class="nav main-nav">
+            <ul>
+                <li><a href="/">Home</a></li>
+                <li><a href="/upload.html">Upload</a></li>
+            </ul>
+        </nav>
+
+        <div class="encode-form" style="padding-top: 5em">
+            <form action="${downloadUrl}" method="post" encType="multipart/form-data">
+                <input type="password" name="password"/ required>
+                <input type="submit"/>
+            </form>
+        </div>
+
+        <footer class="fixed">
+            <nav class="nav footer-nav">
+                <ul>
+                    <li><a href="https://github.coventry.ac.uk/leej64/205CDE-Course-Work">GitHub</a></li>
+                    <li><a href="/about.html">About</a></li>
+                </ul>
+            </nav>
+            <div itemscope itemtype="http://data-vocabulary.org/Person">
+                <p>Designed by <span itemprop="name">James Lee</span> as part of the 205CDE and 206CDE modules at <span itemprop="affiliation ">Coventry University</span>.</p>
+            </div>
+        </footer>
     </body>
 </html>
