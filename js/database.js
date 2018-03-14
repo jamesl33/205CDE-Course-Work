@@ -13,23 +13,25 @@ const dbName = 'passwords.sqlite3'
 
 module.exports = {
 	/**
-	 * @name addPassword
+	 * @name addRow
 	 * @description Add a filePath/password entry to the database. Called when the user uploads a file to the server.
+     * @param {string} email - The users email
+     * @param {string} password - The users password.
 	 * @param {string} filePath - Path to file on the server.
-	 * @param {string} password - The users password.
+     * @param {int} saltRounds - The salt round argument for bcrypt
 	 */
-	addPassword: (filePath, password, saltRounds) => {
+	addRow: (email, password, filePath, saltRounds) => {
 		const db = new database(dbName)
-		db.prepare('INSERT INTO passwords (file_path, password_hash) VALUES (?, ?)').run(filePath, bcrypt.hashSync(password, saltRounds))
+		db.prepare('INSERT INTO passwords (email, password_hash, file_path) VALUES (?, ?, ?)').run(email, bcrypt.hashSync(password, saltRounds), filePath)
 		db.close()
 	},
 
 	/**
-	 * @name removePassword
+	 * @name removeRow
 	 * @description Removes a password from the database. Called when the user has claimed the download.
 	 * @param {string} filePath - Path to file on the server.
 	 */
-	removePassword: (filePath) => {
+	removeRow: (filePath) => {
 		const db = new database(dbName)
 		db.prepare('delete from passwords where file_path = ?').run(filePath)
 		db.close()
@@ -59,7 +61,7 @@ module.exports = {
 			}
 
 			const db = new database(dbName)
-			db.prepare('CREATE TABLE passwords (file_path text NOT NULL, password_hash text NOT NULL);').run()
+			db.prepare('CREATE TABLE passwords (email text, password_hash text NOT NULL, file_path text NOT NULL);').run()
 			db.close()
 		})
 	}

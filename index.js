@@ -74,13 +74,15 @@ function addTempRoutes(id, filePath) {
 		const password = req.body.password
 
 		if (database.checkPassword(filePath, password)) {
+			// TODO - Email the user when the file has been downloaded
+
 			encryptor.decryptFile(filePath + '.data', filePath, password, (error) => {
 				if (error) {
 					console.error(error)
 				}
 
 				res.download(filePath)
-				database.removePassword(filePath)
+				database.removeRow(filePath)
 				routeRemover.removeRouteByPath(app, '/download/' + id)
 				routeRemover.removeRouteByPath(app, '/share/' + id)
 
@@ -107,6 +109,7 @@ app.post(path.join('/', 'upload'), (req, res) => {
 	const storageDir = path.join('/tmp/storage-') + id
 	const file = req.files.file
 	const password = req.body.password
+	const email = req.body.email.length > 0 ? req.body.email : null
 	const filePath = path.join(storageDir, file.name)
 	const saltRounds = 10
 
@@ -132,7 +135,7 @@ app.post(path.join('/', 'upload'), (req, res) => {
 		})
 	})
 
-	database.addPassword(filePath, password, saltRounds)
+	database.addRow(email, password, filePath, saltRounds)
 	addTempRoutes(id, filePath)
 	res.redirect('/share/' + id)
 })
@@ -198,7 +201,7 @@ function startGarbageCollector(storageDir, prefix, maxAge) {
 					routeRemover.removeRouteByPath(app, '/' + route.join('-'))
 
 					fs.readdirSync(filePath).map(file => {
-						database.removePassword(file)
+						database.removeRow(file)
 					})
 				})
 			})
