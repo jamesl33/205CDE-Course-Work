@@ -54,15 +54,21 @@ module.exports = {
 	 * @name recreateDatabase
 	 * @description Used to remove then recreate the password database.
 	 */
-	recreateDatabase: () => {
-		fs.unlink(dbName, (error) => {
-			if (error && error.code !== 'ENOENT') {
-				console.error(error)
-			}
+	recreateDatabase: async function(callback) {
+		try {
+			await new Promise((resolve, reject) => {
+				fs.unlink(dbName, (error) => {
+					if (error && error.code !== 'ENOENT') {
+						reject(error)
+					}
 
-			const db = new database(dbName)
-			db.prepare('CREATE TABLE passwords (email text, password_hash text NOT NULL, file_path text NOT NULL);').run()
-			db.close()
-		})
+					const db = new database(dbName)
+					db.prepare('CREATE TABLE passwords (email text, password_hash text NOT NULL, file_path text NOT NULL);').run()
+					db.close()
+				})
+			})
+		} catch(error) {
+			callback(error)
+		}
 	}
 }

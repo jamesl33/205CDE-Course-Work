@@ -35,18 +35,32 @@ app.set('view engine', 'html')
  * @description Automatically serves static files in the given directory.
  * @param {string} directory
  */
-function serveStaticFiles(directory) {
-	fs.readdirSync(directory).map(page => {
-		if (page === 'index.html') {
-			app.get('/', (req, res) => {
-				res.sendFile(path.join(directory, page))
+async function serveStaticFiles(directory, callback) {
+	try {
+		await new Promise((resolve, reject) => {
+			fs.readdir(directory, (error, files) => {
+				if (error) {
+					reject(error)
+				}
+
+				files.map(page => {
+					if (page === 'index.html') {
+						app.get('/', (req, res) => {
+							res.sendFile(path.join(directory, page))
+						})
+					} else {
+						app.get(path.join('/', page), (req, res) => {
+							res.sendFile(path.join(directory, page))
+						})
+					}
+				})
 			})
-		} else {
-			app.get(path.join('/', page), (req, res) => {
-				res.sendFile(path.join(directory, page))
-			})
-		}
-	})
+
+			resolve()
+		})
+	} catch(error) {
+		callback(error)
+	}
 }
 
 /**
@@ -78,17 +92,27 @@ function addTempRoutes(id, filePath) {
 
 			encryptor.decryptFile(filePath + '.data', filePath, password, (error) => {
 				if (error) {
-					console.error(error)
+					return console.error(error)
 				}
 
 				res.download(filePath)
 				database.removeRow(filePath)
-				routeRemover.removeRouteByPath(app, '/download/' + id)
-				routeRemover.removeRouteByPath(app, '/share/' + id)
+
+				routeRemover.removeRouteByPath(app, '/download/' + id, (error) => {
+					if (error) {
+						return console.error(error)
+					}
+				})
+
+				routeRemover.removeRouteByPath(app, '/share/' + id, (error) => {
+					if (error) {
+						return console.error(error)
+					}
+				})
 
 				rimraf(path.dirname(filePath), (error) => {
 					if (error) {
-						console.error(error)
+						return console.error(error)
 					}
 				})
 			})
@@ -115,20 +139,20 @@ app.post(path.join('/', 'upload'), (req, res) => {
 
 	fs.mkdir(storageDir, (error) => {
 		if (error) {
-			console.error(error)
+			return console.error(error)
 		}
 	})
 
 	file.mv(filePath, (error) => {
 		if (error) {
-			console.error(error)
+			return console.error(error)
 		}
 
 		encryptor.encryptFile(filePath, filePath + '.data', password, (error) => {
 			if (!error) {
 				fs.unlink(filePath, (error) => {
 					if (error) {
-						console.error(error)
+						return console.error(error)
 					}
 				})
 			}
@@ -141,72 +165,86 @@ app.post(path.join('/', 'upload'), (req, res) => {
 })
 
 /**
- * @name cleanupStorageDir
- * @description Remove any storage directories from the last time that the server was run.
- * @param {string} storageDir Directory to search in.
- * @param {string} prefix Prefix for the storage files {default: storage-}.
- */
-function cleanupStorageDir(storageDir, prefix) {
-	glob(`${path.join(storageDir, prefix)}*`, (error, files) => {
-		if (error) {
-			console.error(error)
-		}
-
-		files.map(file => {
-			rimraf(file, (error) => {
-				if (error) {
-					console.error(error)
-				}
-			})
-		})
-	})
-}
-
-/**
  * @name startGarbageCollector
  * @description Start the scheduled job which cleans up downloads which have been unclaimed for a set amount of time.
  * @param {string} storageDir Directory to search in.
  * @param {string} prefix Prefix for the storage files {default: storage-}.
  * @param {int} maxAge Longest amount of time a file can be hosted {default: hour}.
  */
-function startGarbageCollector(storageDir, prefix, maxAge) {
-	schedule.scheduleJob('0 * * * *', () => {
-		glob(`${path.posix.join(storageDir, prefix)}*`, (error, files) => {
-			if (error) {
-				console.error(error)
-			}
-
-			files.map(filePath => {
-				fs.stat(filePath, (error, stats) => {
+async function startGarbageCollector(storageDir, prefix, maxAge, callback) {
+	try {
+		await new Promise((resolve, reject) => {
+			schedule.scheduleJob('0 * * * *', () => {
+				glob(`${path.posix.join(storageDir, prefix)}*`, (error, files) => {
 					if (error) {
-						console.error(error)
+						reject(error)
 					}
 
-					const timeNow = new Date().getTime()
-					const fileTime = new Date(stats.ctime).getTime() + maxAge
-
-					if (timeNow > fileTime) {
-						rimraf(filePath, (error) => {
+					files.map(filePath => {
+						fs.stat(filePath, (error, stats) => {
 							if (error) {
-								console.error(error)
+								reject(error)
 							}
+
+							const timeNow = new Date().getTime()
+							const fileTime = new Date(stats.ctime).getTime() + maxAge
+
+							if (timeNow > fileTime) {
+								rimraf(filePath, (error) => {
+									if (error) {
+										reject(error)
+									}
+								})
+							}
+
+							const route = filePath.split('-')
+
+							route.shift()
+							route.shift()
+
+							routeRemover.removeRouteByPath(app, '/' + route.join('-'))
+
+							fs.readdirSync(filePath).map(file => {
+								database.removeRow(file)
+							})
 						})
-					}
+					})
+				})
+			})
 
-					const route = filePath.split('-')
+			resolve()
+		})
+	} catch(error) {
+		callback(error)
+	}
+}
 
-					route.shift()
-					route.shift()
+/**
+ * @name cleanupStorageDir
+ * @description Remove any storage directories from the last time that the server was run.
+ * @param {string} storageDir Directory to search in.
+ * @param {string} prefix Prefix for the storage files {default: storage-}.
+ */
+async function cleanupStorageDir(storageDir, prefix, callback) {
+	try {
+		await new Promise((resolve, reject) => {
+			glob(`${path.join(storageDir, prefix)}*`, (error, files) => {
+				if (error) {
+					reject(error)
+				}
 
-					routeRemover.removeRouteByPath(app, '/' + route.join('-'))
-
-					fs.readdirSync(filePath).map(file => {
-						database.removeRow(file)
+				files.map(file => {
+					rimraf(file, (error) => {
+						if (error) {
+							reject(error)
+						}
 					})
 				})
 			})
 		})
-	})
+	} catch(error) {
+		callback(error)
+	}
 }
 
 const maxAge = 3600000
@@ -215,9 +253,29 @@ const prefix = 'storage-'
 const storageDir = '/tmp/'
 
 app.listen(port, () => {
-	cleanupStorageDir(storageDir, prefix)
-	startGarbageCollector(storageDir, prefix, maxAge)
-	database.recreateDatabase()
-	serveStaticFiles(path.join(__dirname, 'pages', 'static'))
+	cleanupStorageDir(storageDir, prefix, (error) => {
+		if (error) {
+			console.error(error)
+		}
+	})
+
+	startGarbageCollector(storageDir, prefix, maxAge, (error) => {
+		if (error) {
+			console.error(error)
+		}
+	})
+
+	serveStaticFiles(path.join(__dirname, 'pages', 'static'), (error) => {
+		if (error) {
+			console.error(error)
+		}
+	})
+
+	database.recreateDatabase((error) => {
+		if (error) {
+			console.error(error)
+		}
+	})
+
 	console.log(`app listening on port ${port}`)
 })
