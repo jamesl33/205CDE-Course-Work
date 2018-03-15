@@ -20,10 +20,13 @@ module.exports = {
 	 * @param {string} filePath - Path to file on the server.
      * @param {int} saltRounds - The salt round argument for bcrypt
 	 */
-	addRow: (email, password, filePath, saltRounds) => {
-		const db = new database(dbName)
-		db.prepare('INSERT INTO passwords (email, password_hash, file_path) VALUES (?, ?, ?)').run(email, bcrypt.hashSync(password, saltRounds), filePath)
-		db.close()
+	addRow: async(email, password, filePath, saltRounds) => {
+		await new Promise((resolve) => {
+			const db = new database(dbName)
+			db.prepare('INSERT INTO passwords (email, password_hash, file_path) VALUES (?, ?, ?)').run(email, bcrypt.hashSync(password, saltRounds), filePath)
+			db.close()
+			resolve()
+		})
 	},
 
 	/**
@@ -31,10 +34,13 @@ module.exports = {
 	 * @description Removes a password from the database. Called when the user has claimed the download.
 	 * @param {string} filePath - Path to file on the server.
 	 */
-	removeRow: (filePath) => {
-		const db = new database(dbName)
-		db.prepare('delete from passwords where file_path = ?').run(filePath)
-		db.close()
+	removeRow: async(filePath) => {
+		await new Promise((resolve) => {
+			const db = new database(dbName)
+			db.prepare('delete from passwords where file_path = ?').run(filePath)
+			db.close()
+			resolve()
+		})
 	},
 
 	/**
@@ -43,18 +49,20 @@ module.exports = {
 	 * @param {string} filePath - Path to file on the server.
 	 * @param {string} password - The users password.
 	 */
-	checkPassword: (filePath, password) => {
-		const db = new database(dbName)
-		const row = db.prepare('select * from passwords where file_path = ?').get(filePath)
-		db.close()
-		return bcrypt.compareSync(password, row.password_hash)
+	checkPassword: async(filePath, password) => {
+		await new Promise((resolve) => {
+			const db = new database(dbName)
+			const row = db.prepare('select * from passwords where file_path = ?').get(filePath)
+			db.close()
+			resolve(bcrypt.compareSync(password, row.password_hash))
+		})
 	},
 
 	/**
 	 * @name recreateDatabase
 	 * @description Used to remove then recreate the password database.
 	 */
-	recreateDatabase: async function() {
+	recreateDatabase: async() => {
 		await new Promise((resolve, reject) => {
 			fs.unlink(dbName, (error) => {
 				if (error && error.code !== 'ENOENT') {
