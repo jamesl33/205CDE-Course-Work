@@ -14,7 +14,6 @@ const es6Renderer = require('express-es6-template-engine')
 const express = require('express')
 const fileUpload = require('express-fileupload')
 const fs = require('fs')
-const glob = require('glob')
 const path = require('path').posix
 const rimraf = require('rimraf')
 const routeRemover = require('./js/express-route-remover.js')
@@ -33,34 +32,70 @@ app.set('view engine', 'html')
 /**
  * @name serveStaticFiles
  * @description Automatically serves static files in the given directory.
- * @param {string} directory
+ * @param {string} staticPageDir
  */
-async function serveStaticFiles(directory, callback) {
-	try {
-		await new Promise((resolve, reject) => {
-			fs.readdir(directory, (error, files) => {
-				if (error) {
-					reject(error)
-				}
+async function serveStaticFiles(staticPageDir) {
+	await new Promise((resolve) => {
+		fs.readdirSync(staticPageDir).map(file => {
+			if (file === 'index.html') {
+				app.get('/', (req, res) => {
+					res.sendFile(path.join(staticPageDir, file))
+				})
+			} else {
+				app.get(path.join('/', file), (req, res) => {
+					res.sendFile(path.join(staticPageDir, file))
+				})
+			}
+		})
 
-				files.map(page => {
-					if (page === 'index.html') {
-						app.get('/', (req, res) => {
-							res.sendFile(path.join(directory, page))
-						})
-					} else {
-						app.get(path.join('/', page), (req, res) => {
-							res.sendFile(path.join(directory, page))
+		resolve()
+	})
+}
+
+/**
+ * @name cleanupUnclaimed
+ * @description Remove any storage directories from the last time that the server was run.
+ * @param {string} storageDir Directory to search in.
+ * @param {string} prefix Prefix for the storage files {default: storage-}.
+ */
+async function cleanupUnclaimed() {
+	await new Promise((resolve, reject) => {
+		fs.readdirSync(storageDir).map(folder => {
+			if (folder.split('-').shift() === prefix) {
+				const stats = fs.statSync(path.join(storageDir, folder))
+				const timeNow = new Date().getTime()
+				const fileTime = new Date(stats.ctime).getTime() + maxAge
+
+				if (timeNow > fileTime) {
+					rimraf(path.join(storageDir, folder), (error) => {
+						if (error) {
+							reject(error)
+						}
+					})
+
+					let id = folder.split('-')
+					id.shift()
+					id = id.join('-')
+
+					const routes = ['/' + id, '/share/' + id, '/download/' + id]
+
+					routes.map(route => {
+						routeRemover.removeRouteByPath(app, route)
+					})
+
+					const files = fs.readdirSync(path.join(storageDir, folder))
+
+					if (files.length > 0) {
+						files.map(file => {
+							database.removeRow(file)
 						})
 					}
-				})
-			})
 
-			resolve()
+					resolve()
+				}
+			}
 		})
-	} catch(error) {
-		callback(error)
-	}
+	})
 }
 
 /**
@@ -85,34 +120,31 @@ function addTempRoutes(id, filePath) {
 	})
 
 	app.post('/download/' + id, (req, res) => {
-		const password = req.body.password
-
-		if (database.checkPassword(filePath, password)) {
+		if (database.checkPassword(filePath, req.body.password)) {
 			// TODO - Email the user when the file has been downloaded
 
-			encryptor.decryptFile(filePath + '.data', filePath, password, (error) => {
+			encryptor.decryptFile(filePath + '.data', filePath, req.body.password, (error) => {
 				if (error) {
-					return console.error(error)
+					throw error
 				}
 
 				res.download(filePath)
+
 				database.removeRow(filePath)
 
-				routeRemover.removeRouteByPath(app, '/download/' + id, (error) => {
-					if (error) {
-						return console.error(error)
-					}
-				})
+				const routes = [`/download/${id}`, `/share/${id}`]
 
-				routeRemover.removeRouteByPath(app, '/share/' + id, (error) => {
-					if (error) {
-						return console.error(error)
-					}
+				routes.map(route => {
+					routeRemover.removeRouteByPath(app, route, (error) => {
+						if (error) {
+							throw error
+						}
+					})
 				})
 
 				rimraf(path.dirname(filePath), (error) => {
 					if (error) {
-						return console.error(error)
+						throw error
 					}
 				})
 			})
@@ -128,34 +160,36 @@ function addTempRoutes(id, filePath) {
  * @param {express-fileupload} file
  * @param {string} password
  */
-app.post(path.join('/', 'upload'), (req, res) => {
+app.post('/upload', (req, res) => {
 	const id = uuid()
-	const storageDir = path.join('/tmp/storage-') + id
+	const fileDir = path.join(storageDir, prefix + '-') + id
 	const file = req.files.file
 	const password = req.body.password
 	const email = req.body.email.length > 0 ? req.body.email : null
-	const filePath = path.join(storageDir, file.name)
+	const filePath = path.join(fileDir, file.name)
 	const saltRounds = 10
 
-	fs.mkdir(storageDir, (error) => {
+	fs.mkdir(fileDir, (error) => {
 		if (error) {
-			return console.error(error)
+			throw error
 		}
 	})
 
 	file.mv(filePath, (error) => {
 		if (error) {
-			return console.error(error)
+			throw error
 		}
 
 		encryptor.encryptFile(filePath, filePath + '.data', password, (error) => {
-			if (!error) {
-				fs.unlink(filePath, (error) => {
-					if (error) {
-						return console.error(error)
-					}
-				})
+			if (error) {
+				throw error
 			}
+
+			fs.unlink(filePath, (error) => {
+				if (error) {
+					throw error
+				}
+			})
 		})
 	})
 
@@ -164,118 +198,17 @@ app.post(path.join('/', 'upload'), (req, res) => {
 	res.redirect('/share/' + id)
 })
 
-/**
- * @name startGarbageCollector
- * @description Start the scheduled job which cleans up downloads which have been unclaimed for a set amount of time.
- * @param {string} storageDir Directory to search in.
- * @param {string} prefix Prefix for the storage files {default: storage-}.
- * @param {int} maxAge Longest amount of time a file can be hosted {default: hour}.
- */
-async function startGarbageCollector(storageDir, prefix, maxAge, callback) {
-	try {
-		await new Promise((resolve, reject) => {
-			schedule.scheduleJob('0 * * * *', () => {
-				glob(`${path.posix.join(storageDir, prefix)}*`, (error, files) => {
-					if (error) {
-						reject(error)
-					}
-
-					files.map(filePath => {
-						fs.stat(filePath, (error, stats) => {
-							if (error) {
-								reject(error)
-							}
-
-							const timeNow = new Date().getTime()
-							const fileTime = new Date(stats.ctime).getTime() + maxAge
-
-							if (timeNow > fileTime) {
-								rimraf(filePath, (error) => {
-									if (error) {
-										reject(error)
-									}
-								})
-							}
-
-							const route = filePath.split('-')
-
-							route.shift()
-							route.shift()
-
-							routeRemover.removeRouteByPath(app, '/' + route.join('-'))
-
-							fs.readdirSync(filePath).map(file => {
-								database.removeRow(file)
-							})
-						})
-					})
-				})
-			})
-
-			resolve()
-		})
-	} catch(error) {
-		callback(error)
-	}
-}
-
-/**
- * @name cleanupStorageDir
- * @description Remove any storage directories from the last time that the server was run.
- * @param {string} storageDir Directory to search in.
- * @param {string} prefix Prefix for the storage files {default: storage-}.
- */
-async function cleanupStorageDir(storageDir, prefix, callback) {
-	try {
-		await new Promise((resolve, reject) => {
-			glob(`${path.join(storageDir, prefix)}*`, (error, files) => {
-				if (error) {
-					reject(error)
-				}
-
-				files.map(file => {
-					rimraf(file, (error) => {
-						if (error) {
-							reject(error)
-						}
-					})
-				})
-			})
-		})
-	} catch(error) {
-		callback(error)
-	}
-}
-
-const maxAge = 3600000
 const port = 8080
-const prefix = 'storage-'
+const prefix = 'storage'
 const storageDir = '/tmp/'
+const maxAge = 3600000
 
 app.listen(port, () => {
-	cleanupStorageDir(storageDir, prefix, (error) => {
-		if (error) {
-			console.error(error)
-		}
+	database.recreateDatabase()
+
+	schedule.scheduleJob('0 * * * *', () => {
+		cleanupUnclaimed()
 	})
 
-	startGarbageCollector(storageDir, prefix, maxAge, (error) => {
-		if (error) {
-			console.error(error)
-		}
-	})
-
-	serveStaticFiles(path.join(__dirname, 'pages', 'static'), (error) => {
-		if (error) {
-			console.error(error)
-		}
-	})
-
-	database.recreateDatabase((error) => {
-		if (error) {
-			console.error(error)
-		}
-	})
-
-	console.log(`app listening on port ${port}`)
+	serveStaticFiles(path.join(__dirname, 'pages', 'static'))
 })

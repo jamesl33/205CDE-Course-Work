@@ -12,27 +12,23 @@ module.exports = {
 	 * @param app The express object as created with {const app = express()}.
 	 * @param path The path which should be removed.
 	 */
-	removeRouteByPath: async function(app, path, callback) {
-		try {
-			await new Promise((resolve) => {
-				app._router.stack.map((route, index) => {
-					if (route.path === path) {
+	removeRouteByPath: async function(app, path) {
+		await new Promise((resolve) => {
+			app._router.stack.map((route, index) => {
+				if (route.path === path) {
+					app._router.stack.splice(index, 1)
+				}
+
+				try {
+					if (route.route.path === path) {
 						app._router.stack.splice(index, 1)
 					}
-
-					try {
-						if (route.route.path === path) {
-							app._router.stack.splice(index, 1)
-						}
-					} catch (TypeError) {
-						// continue if route.route.path is undefined.
-					}
-				})
-
-				resolve()
+				} catch (TypeError) {
+					// continue if route.route.path is undefined.
+				}
 			})
-		} catch (error) {
-			callback(error)
-		}
+
+			resolve()
+		})
 	}
 }
