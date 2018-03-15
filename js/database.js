@@ -1,3 +1,5 @@
+#!/usr/bin/node
+
 /**
  * @author James Lee
  * A simple module which facilitate the management of a path/password database.

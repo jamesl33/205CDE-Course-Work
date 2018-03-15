@@ -1,3 +1,5 @@
+#!/usr/bin/node
+
 /**
  * @author James Lee
  * A simple module to remove routes created using app.VERB.
