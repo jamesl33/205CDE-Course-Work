@@ -29,6 +29,10 @@ app.use(fileUpload())
 
 app.set('view engine', 'html')
 
+const status = {
+	'unauthorized': 401
+}
+
 /**
  * @name serveStaticFiles
  * @description Automatically serves static files in the given directory.
@@ -88,7 +92,7 @@ async function removeUnclaimedFolder(folder, callback) {
 				files.map(file => {
 					database.removeRow(file, (error) => {
 						if (error) {
-							throw new Error(error.message)
+							console.error(new Error(error.message))
 						}
 					})
 				})
@@ -148,58 +152,76 @@ async function cleanupAllUnclaimed(callback) {
  * @description Creates the temporary routes which are relevent to accessing and sharing a file.
  */
 function addTempRoutes(id, filePath) {
-	app.get('/share/' + id, (req, res) => {
-		res.render(path.join(__dirname, 'pages', 'dynamic', 'share.html'), {
-			locals: {
-				downloadUrl: `/download/${id}`
-			}
+	app.get('/share/' + id, async(req, res) => {
+		await new Promise((resolve) => {
+			res.render(path.join(__dirname, 'pages', 'dynamic', 'share.html'), {
+				locals: {
+					downloadUrl: `/download/${id}`
+				}
+			})
+
+			resolve()
 		})
 	})
 
-	app.get('/download/' + id, (req, res) => {
-		res.render(path.join(__dirname, 'pages', 'dynamic', 'download.html'), {
-			locals: {
-				downloadUrl: `/download/${id}`
-			}
+	app.get('/download/' + id, async(req, res) => {
+		await new Promise((resolve) => {
+			res.render(path.join(__dirname, 'pages', 'dynamic', 'download.html'), {
+				locals: {
+					downloadUrl: `/download/${id}`
+				}
+			})
+
+			resolve()
 		})
 	})
 
-	app.post('/download/' + id, (req, res) => {
-		database.checkPassword(filePath, req.body.password, (error, result) => {
-			if (error) {
-				throw new Error(error.message)
-			}
-
-			if (result) {
-				encryptor.decryptFile(filePath + '.data', filePath, req.body.password, (error) => {
+	app.post('/download/' + id, async(req, res) => {
+		try {
+			await new Promise((resolve, reject) => {
+				database.checkPassword(filePath, req.body.password, (error, result) => {
 					if (error) {
-						throw new Error(error.message)
+						reject(new Error(error.message))
 					}
 
-					res.download(filePath)
-
-					database.removeRow(filePath)
-
-					const routes = [`/download/${id}`, `/share/${id}`]
-
-					routes.map(route => {
-						routeRemover.removeRouteByPath(app, route, (error) => {
+					if (result) {
+						encryptor.decryptFile(filePath + '.data', filePath, req.body.password, (error) => {
 							if (error) {
-								throw new Error(error.message)
+								reject(new Error(error.message))
 							}
-						})
-					})
 
-					rimraf(path.dirname(filePath), (error) => {
-						if (error) {
-							throw new Error(error.message)
-						}
-					})
+							res.download(filePath)
+
+							database.removeRow(filePath)
+
+							const routes = [`/download/${id}`, `/share/${id}`]
+
+							routes.map(route => {
+								routeRemover.removeRouteByPath(app, route, (error) => {
+									if (error) {
+										reject(new Error(error.message))
+									}
+								})
+							})
+
+							rimraf(path.dirname(filePath), (error) => {
+								if (error) {
+									reject(new Error(error.message))
+								}
+							})
+						})
+					} else {
+						return reject(new Error('Password Incorrect'))
+					}
 				})
+			})
+		} catch(error) {
+			if (error.message === 'Password Incorrect') {
+				res.status(status.unauthorized).send('Permission Denied')
 			} else {
-				res.redirect('/download/' + id)
+				console.error(new Error(error.message))
 			}
-		})
+		}
 	})
 }
 
@@ -209,47 +231,56 @@ function addTempRoutes(id, filePath) {
  * @param {express-fileupload} file
  * @param {string} password
  */
-app.post('/upload', (req, res) => {
-	const id = uuid()
-	const fileDir = path.join(storageDir, prefix + '-') + id
-	const file = req.files.file
-	const password = req.body.password
-	const email = req.body.email.length > 0 ? req.body.email : null
-	const filePath = path.join(fileDir, file.name)
-	const saltRounds = 10
 
-	fs.mkdir(fileDir, (error) => {
-		if (error) {
-			throw new Error(error.message)
-		}
-	})
+app.post('/upload', async(req, res) => {
+	try {
+		await new Promise((resolve, reject) => {
+			const id = uuid()
+			const fileDir = path.join(storageDir, prefix + '-') + id
+			const file = req.files.file
+			const password = req.body.password
+			const email = req.body.email.length > 0 ? req.body.email : null
+			const filePath = path.join(fileDir, file.name)
+			const saltRounds = 10
 
-	file.mv(filePath, (error) => {
-		if (error) {
-			throw new Error(error.message)
-		}
-
-		encryptor.encryptFile(filePath, filePath + '.data', password, (error) => {
-			if (error) {
-				throw new Error(error.message)
-			}
-
-			fs.unlink(filePath, (error) => {
+			fs.mkdir(fileDir, (error) => {
 				if (error) {
-					throw new Error(error.message)
+					return reject(new Error(error.message))
 				}
 			})
+
+			file.mv(filePath, (error) => {
+				if (error) {
+					return reject(new Error(error.message))
+				}
+
+				encryptor.encryptFile(filePath, filePath + '.data', password, (error) => {
+					if (error) {
+						return reject(new Error(error.message))
+					}
+
+					fs.unlink(filePath, (error) => {
+						if (error) {
+							return reject(new Error(error.message))
+						}
+					})
+				})
+			})
+
+			database.addRow(email, password, filePath, saltRounds, (error) => {
+				if (error) {
+					return reject(new Error(error.message))
+				}
+			})
+
+			addTempRoutes(id, filePath)
+
+			res.redirect('/share/' + id)
+			resolve()
 		})
-	})
-
-	database.addRow(email, password, filePath, saltRounds, (error) => {
-		if (error) {
-			throw new Error(error.message)
-		}
-	})
-
-	addTempRoutes(id, filePath)
-	res.redirect('/share/' + id)
+	} catch(error) {
+		console.error(new Error(error.message))
+	}
 })
 
 const port = 8080
@@ -259,18 +290,24 @@ const maxAge = 3600000
 
 app.listen(port, () => {
 	database.recreateDatabase((error) => {
-		throw new Error(error.message)
+		if (error) {
+			console.error(new Error(error.message))
+		}
 	})
 
 	schedule.scheduleJob('0 * * * *', () => {
 		cleanupAllUnclaimed((error) => {
-			throw new Error(error.message)
+			if (error) {
+				console.error(new Error(error.message))
+			}
 		})
 	})
 
 	serveStaticFiles(path.join(__dirname, 'pages', 'static'), (error) => {
 		if (error) {
-			throw new Error(error.message)
+			console.error(new Error(error.message))
 		}
 	})
+
+	console.log(`app listening on port ${port}`)
 })
