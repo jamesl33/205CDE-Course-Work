@@ -22,13 +22,17 @@ module.exports = {
 	 * @param {string} filePath - Path to file on the server.
      * @param {int} saltRounds - The salt round argument for bcrypt
 	 */
-	addRow: async(email, password, filePath, saltRounds) => {
-		await new Promise((resolve) => {
-			const db = new database(dbName)
-			db.prepare('INSERT INTO passwords (email, password_hash, file_path) VALUES (?, ?, ?)').run(email, bcrypt.hashSync(password, saltRounds), filePath)
-			db.close()
-			resolve()
-		})
+	addRow: async(email, password, filePath, saltRounds, callback) => {
+		try {
+			await new Promise((resolve) => {
+				const db = new database(dbName)
+				db.prepare('INSERT INTO passwords (email, password_hash, file_path) VALUES (?, ?, ?)').run(email, bcrypt.hashSync(password, saltRounds), filePath)
+				db.close()
+				resolve()
+			})
+		} catch(error) {
+			callback(new Error(error.message))
+		}
 	},
 
 	/**
@@ -36,13 +40,17 @@ module.exports = {
 	 * @description Removes a password from the database. Called when the user has claimed the download.
 	 * @param {string} filePath - Path to file on the server.
 	 */
-	removeRow: async(filePath) => {
-		await new Promise((resolve) => {
-			const db = new database(dbName)
-			db.prepare('delete from passwords where file_path = ?').run(filePath)
-			db.close()
-			resolve()
-		})
+	removeRow: async(filePath, callback) => {
+		try {
+			await new Promise((resolve) => {
+				const db = new database(dbName)
+				db.prepare('delete from passwords where file_path = ?').run(filePath)
+				db.close()
+				resolve()
+			})
+		} catch(error) {
+			callback(new Error(error.message))
+		}
 	},
 
 	/**
@@ -51,20 +59,26 @@ module.exports = {
 	 * @param {string} filePath - Path to file on the server.
 	 * @param {string} password - The users password.
 	 */
-	checkPassword: async(filePath, password) => {
-		await new Promise((resolve) => {
-			const db = new database(dbName)
-			const row = db.prepare('select * from passwords where file_path = ?').get(filePath)
-			db.close()
-			resolve(bcrypt.compareSync(password, row.password_hash))
-		})
+	checkPassword: async(filePath, password, callback) => {
+		try {
+			const result = await new Promise((resolve) => {
+				const db = new database(dbName)
+				const row = db.prepare('select * from passwords where file_path = ?').get(filePath)
+				db.close()
+				resolve(bcrypt.compareSync(password, row.password_hash))
+			})
+
+			callback(null, result)
+		} catch(error) {
+			callback(new Error(error.message))
+		}
 	},
 
 	/**
 	 * @name recreateDatabase
 	 * @description Used to remove then recreate the password database.
 	 */
-	recreateDatabase: async() => {
+	recreateDatabase: async(callback) => {
 		try {
 			await new Promise((resolve, reject) => {
 				fs.unlink(dbName, (error) => {
@@ -79,7 +93,7 @@ module.exports = {
 				})
 			})
 		} catch(error) {
-			console.error(`Error: ${error.message}`)
+			callback(new Error(error.message))
 		}
 	}
 }

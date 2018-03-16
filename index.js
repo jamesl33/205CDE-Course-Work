@@ -34,7 +34,7 @@ app.set('view engine', 'html')
  * @description Automatically serves static files in the given directory.
  * @param {string} staticPageDir
  */
-async function serveStaticFiles(staticPageDir) {
+async function serveStaticFiles(staticPageDir, callback) {
 	try {
 		await new Promise((resolve, reject) => {
 			fs.readdir(staticPageDir, (error, files) => {
@@ -58,7 +58,7 @@ async function serveStaticFiles(staticPageDir) {
 			})
 		})
 	} catch(error) {
-		console.error(`Error: ${error.message}`)
+		callback(new Error(error.message))
 	}
 }
 
@@ -67,7 +67,7 @@ async function serveStaticFiles(staticPageDir) {
  * @description Remove an unclamied folder
  * @param {string} name of folder to be removed
  */
-async function removeUnclaimedFolder(folder) {
+async function removeUnclaimedFolder(folder, callback) {
 	try {
 		await new Promise((resolve, reject) => {
 			let id = folder.split('-')
@@ -86,7 +86,11 @@ async function removeUnclaimedFolder(folder) {
 				}
 
 				files.map(file => {
-					database.removeRow(file)
+					database.removeRow(file, (error) => {
+						if (error) {
+							throw new Error(error.message)
+						}
+					})
 				})
 			})
 
@@ -97,7 +101,7 @@ async function removeUnclaimedFolder(folder) {
 			})
 		})
 	} catch(error) {
-		console.error(new Error(error.message))
+		callback(new Error(error.message))
 	}
 }
 
@@ -107,7 +111,7 @@ async function removeUnclaimedFolder(folder) {
  * @param {string} storageDir Directory to search in.
  * @param {string} prefix Prefix for the storage files {default: storage-}.
  */
-async function cleanupAllUnclaimed() {
+async function cleanupAllUnclaimed(callback) {
 	try {
 		await new Promise((resolve, reject) => {
 			fs.readdir(storageDir, (error, files) => {
@@ -135,7 +139,7 @@ async function cleanupAllUnclaimed() {
 			})
 		})
 	} catch(error) {
-		console.error(`Error: ${error.message}`)
+		callback(new Error(error.message))
 	}
 }
 
@@ -161,37 +165,41 @@ function addTempRoutes(id, filePath) {
 	})
 
 	app.post('/download/' + id, (req, res) => {
-		if (database.checkPassword(filePath, req.body.password)) {
-			// TODO - Email the user when the file has been downloaded
+		database.checkPassword(filePath, req.body.password, (error, result) => {
+			if (error) {
+				throw new Error(error.message)
+			}
 
-			encryptor.decryptFile(filePath + '.data', filePath, req.body.password, (error) => {
-				if (error) {
-					throw new Error(error.message)
-				}
+			if (result) {
+				encryptor.decryptFile(filePath + '.data', filePath, req.body.password, (error) => {
+					if (error) {
+						throw new Error(error.message)
+					}
 
-				res.download(filePath)
+					res.download(filePath)
 
-				database.removeRow(filePath)
+					database.removeRow(filePath)
 
-				const routes = [`/download/${id}`, `/share/${id}`]
+					const routes = [`/download/${id}`, `/share/${id}`]
 
-				routes.map(route => {
-					routeRemover.removeRouteByPath(app, route, (error) => {
+					routes.map(route => {
+						routeRemover.removeRouteByPath(app, route, (error) => {
+							if (error) {
+								throw new Error(error.message)
+							}
+						})
+					})
+
+					rimraf(path.dirname(filePath), (error) => {
 						if (error) {
 							throw new Error(error.message)
 						}
 					})
 				})
-
-				rimraf(path.dirname(filePath), (error) => {
-					if (error) {
-						throw new Error(error.message)
-					}
-				})
-			})
-		} else {
-			res.redirect('/download/' + id)
-		}
+			} else {
+				res.redirect('/download/' + id)
+			}
+		})
 	})
 }
 
@@ -234,7 +242,12 @@ app.post('/upload', (req, res) => {
 		})
 	})
 
-	database.addRow(email, password, filePath, saltRounds)
+	database.addRow(email, password, filePath, saltRounds, (error) => {
+		if (error) {
+			throw new Error(error.message)
+		}
+	})
+
 	addTempRoutes(id, filePath)
 	res.redirect('/share/' + id)
 })
@@ -245,11 +258,19 @@ const storageDir = '/tmp/'
 const maxAge = 3600000
 
 app.listen(port, () => {
-	database.recreateDatabase()
-
-	schedule.scheduleJob('0 * * * *', () => {
-		cleanupAllUnclaimed()
+	database.recreateDatabase((error) => {
+		throw new Error(error.message)
 	})
 
-	serveStaticFiles(path.join(__dirname, 'pages', 'static'))
+	schedule.scheduleJob('0 * * * *', () => {
+		cleanupAllUnclaimed((error) => {
+			throw new Error(error.message)
+		})
+	})
+
+	serveStaticFiles(path.join(__dirname, 'pages', 'static'), (error) => {
+		if (error) {
+			throw new Error(error.message)
+		}
+	})
 })
