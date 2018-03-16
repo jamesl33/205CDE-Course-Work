@@ -35,67 +35,108 @@ app.set('view engine', 'html')
  * @param {string} staticPageDir
  */
 async function serveStaticFiles(staticPageDir) {
-	await new Promise((resolve) => {
-		fs.readdirSync(staticPageDir).map(file => {
-			if (file === 'index.html') {
-				app.get('/', (req, res) => {
-					res.sendFile(path.join(staticPageDir, file))
-				})
-			} else {
-				app.get(path.join('/', file), (req, res) => {
-					res.sendFile(path.join(staticPageDir, file))
-				})
-			}
-		})
+	try {
+		await new Promise((resolve, reject) => {
+			fs.readdir(staticPageDir, (error, files) => {
+				if (error) {
+					return reject(new Error(error.message))
+				}
 
-		resolve()
-	})
+				files.map(file => {
+					if (file === 'index.html') {
+						app.get('/', (req, res) => {
+							res.sendFile(path.join(staticPageDir, file))
+						})
+					} else {
+						app.get(path.join('/', file), (req, res) => {
+							res.sendFile(path.join(staticPageDir, file))
+						})
+					}
+				})
+
+				resolve()
+			})
+		})
+	} catch(error) {
+		console.error(`Error: ${error.message}`)
+	}
 }
 
 /**
- * @name cleanupUnclaimed
+ * @name removeUnclaimedFolder
+ * @description Remove an unclamied folder
+ * @param {string} name of folder to be removed
+ */
+async function removeUnclaimedFolder(folder) {
+	try {
+		await new Promise((resolve, reject) => {
+			let id = folder.split('-')
+			id.shift()
+			id = id.join('-')
+
+			const routes = ['/' + id, '/share/' + id, '/download/' + id]
+
+			routes.map(route => {
+				routeRemover.removeRouteByPath(app, route)
+			})
+
+			fs.readdir(path.join(storageDir, folder), (error, files) => {
+				if (error) {
+					return reject(new Error(error.message))
+				}
+
+				files.map(file => {
+					database.removeRow(file)
+				})
+			})
+
+			rimraf(path.join(storageDir, folder), (error) => {
+				if (error) {
+					return reject(new Error(error.message))
+				}
+			})
+		})
+	} catch(error) {
+		console.error(new Error(error.message))
+	}
+}
+
+/**
+ * @name cleanupAllUnclaimed
  * @description Remove any storage directories from the last time that the server was run.
  * @param {string} storageDir Directory to search in.
  * @param {string} prefix Prefix for the storage files {default: storage-}.
  */
-async function cleanupUnclaimed() {
-	await new Promise((resolve, reject) => {
-		fs.readdirSync(storageDir).map(folder => {
-			if (folder.split('-').shift() === prefix) {
-				const stats = fs.statSync(path.join(storageDir, folder))
-				const timeNow = new Date().getTime()
-				const fileTime = new Date(stats.ctime).getTime() + maxAge
+async function cleanupAllUnclaimed() {
+	try {
+		await new Promise((resolve, reject) => {
+			fs.readdir(storageDir, (error, files) => {
+				if (error) {
+					return reject(new Error(error.message))
+				}
 
-				if (timeNow > fileTime) {
-					rimraf(path.join(storageDir, folder), (error) => {
-						if (error) {
-							reject(error)
-						}
-					})
+				files.map(folder => {
+					if (folder.split('-').shift() === prefix) {
+						fs.stat(path.join(storageDir, folder), (error, stats) => {
+							if (error) {
+								return reject(new Error(error.message))
+							}
 
-					let id = folder.split('-')
-					id.shift()
-					id = id.join('-')
+							const timeNow = new Date().getTime()
+							const fileTime = new Date(stats.ctime).getTime() + maxAge
 
-					const routes = ['/' + id, '/share/' + id, '/download/' + id]
-
-					routes.map(route => {
-						routeRemover.removeRouteByPath(app, route)
-					})
-
-					const files = fs.readdirSync(path.join(storageDir, folder))
-
-					if (files.length > 0) {
-						files.map(file => {
-							database.removeRow(file)
+							if (timeNow > fileTime) {
+								removeUnclaimedFolder(folder)
+								resolve()
+							}
 						})
 					}
-
-					resolve()
-				}
-			}
+				})
+			})
 		})
-	})
+	} catch(error) {
+		console.error(`Error: ${error.message}`)
+	}
 }
 
 /**
@@ -125,7 +166,7 @@ function addTempRoutes(id, filePath) {
 
 			encryptor.decryptFile(filePath + '.data', filePath, req.body.password, (error) => {
 				if (error) {
-					throw error
+					throw new Error(error.message)
 				}
 
 				res.download(filePath)
@@ -137,14 +178,14 @@ function addTempRoutes(id, filePath) {
 				routes.map(route => {
 					routeRemover.removeRouteByPath(app, route, (error) => {
 						if (error) {
-							throw error
+							throw new Error(error.message)
 						}
 					})
 				})
 
 				rimraf(path.dirname(filePath), (error) => {
 					if (error) {
-						throw error
+						throw new Error(error.message)
 					}
 				})
 			})
@@ -171,23 +212,23 @@ app.post('/upload', (req, res) => {
 
 	fs.mkdir(fileDir, (error) => {
 		if (error) {
-			throw error
+			throw new Error(error.message)
 		}
 	})
 
 	file.mv(filePath, (error) => {
 		if (error) {
-			throw error
+			throw new Error(error.message)
 		}
 
 		encryptor.encryptFile(filePath, filePath + '.data', password, (error) => {
 			if (error) {
-				throw error
+				throw new Error(error.message)
 			}
 
 			fs.unlink(filePath, (error) => {
 				if (error) {
-					throw error
+					throw new Error(error.message)
 				}
 			})
 		})
@@ -207,7 +248,7 @@ app.listen(port, () => {
 	database.recreateDatabase()
 
 	schedule.scheduleJob('0 * * * *', () => {
-		cleanupUnclaimed()
+		cleanupAllUnclaimed()
 	})
 
 	serveStaticFiles(path.join(__dirname, 'pages', 'static'))
