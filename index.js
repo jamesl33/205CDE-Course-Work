@@ -43,7 +43,7 @@ async function serveStaticFiles(staticPageDir, callback) {
 		await new Promise((resolve, reject) => {
 			fs.readdir(staticPageDir, (error, files) => {
 				if (error) {
-					return reject(new Error(error.message))
+					return reject(error)
 				}
 
 				files.map(file => {
@@ -62,7 +62,7 @@ async function serveStaticFiles(staticPageDir, callback) {
 			})
 		})
 	} catch(error) {
-		callback(new Error(error.message))
+		callback(error)
 	}
 }
 
@@ -86,13 +86,13 @@ async function removeUnclaimedFolder(folder, callback) {
 
 			fs.readdir(path.join(storageDir, folder), (error, files) => {
 				if (error) {
-					return reject(new Error(error.message))
+					return reject(error)
 				}
 
 				files.map(file => {
 					database.removeRow(file, (error) => {
 						if (error) {
-							console.error(new Error(error.message))
+							return reject(error)
 						}
 					})
 				})
@@ -100,12 +100,14 @@ async function removeUnclaimedFolder(folder, callback) {
 
 			rimraf(path.join(storageDir, folder), (error) => {
 				if (error) {
-					return reject(new Error(error.message))
+					return reject(error)
 				}
 			})
+
+			resolve()
 		})
 	} catch(error) {
-		callback(new Error(error.message))
+		callback(error)
 	}
 }
 
@@ -120,30 +122,37 @@ async function cleanupAllUnclaimed(callback) {
 		await new Promise((resolve, reject) => {
 			fs.readdir(storageDir, (error, files) => {
 				if (error) {
-					return reject(new Error(error.message))
+					return reject(error)
 				}
 
 				files.map(folder => {
-					if (folder.split('-').shift() === prefix) {
-						fs.stat(path.join(storageDir, folder), (error, stats) => {
-							if (error) {
-								return reject(new Error(error.message))
-							}
-
-							const timeNow = new Date().getTime()
-							const fileTime = new Date(stats.ctime).getTime() + maxAge
-
-							if (timeNow > fileTime) {
-								removeUnclaimedFolder(folder)
-								resolve()
-							}
-						})
+					if (folder.split('-').shift() !== prefix) {
+						return
 					}
+
+					fs.stat(path.join(storageDir, folder), (error, stats) => {
+						if (error) {
+							return reject(error)
+						}
+
+						const timeNow = new Date().getTime()
+						const fileTime = new Date(stats.ctime).getTime() + maxAge
+
+						if (timeNow > fileTime) {
+							removeUnclaimedFolder(folder, (error) => {
+								if (error) {
+									return reject(error)
+								}
+							})
+						}
+					})
 				})
+
+				resolve()
 			})
 		})
 	} catch(error) {
-		callback(new Error(error.message))
+		callback(error)
 	}
 }
 
@@ -181,46 +190,44 @@ function addTempRoutes(id, filePath) {
 			await new Promise((resolve, reject) => {
 				database.checkPassword(filePath, req.body.password, (error, result) => {
 					if (error) {
-						reject(new Error(error.message))
+						return reject(error)
 					}
 
-					if (result) {
-						encryptor.decryptFile(filePath + '.data', filePath, req.body.password, (error) => {
+					if (!result) {
+						return res.status(status.unauthorized).send('Permission Denied')
+					}
+
+					encryptor.decryptFile(filePath + '.data', filePath, req.body.password, (error) => {
+						if (error) {
+							return reject(error)
+						}
+
+						res.download(filePath)
+
+						rimraf(path.dirname(filePath), (error) => {
 							if (error) {
-								reject(new Error(error.message))
+								return reject(error)
 							}
-
-							res.download(filePath)
-
-							database.removeRow(filePath)
-
-							const routes = [`/download/${id}`, `/share/${id}`]
-
-							routes.map(route => {
-								routeRemover.removeRouteByPath(app, route, (error) => {
-									if (error) {
-										reject(new Error(error.message))
-									}
-								})
-							})
-
-							rimraf(path.dirname(filePath), (error) => {
-								if (error) {
-									reject(new Error(error.message))
-								}
-							})
 						})
-					} else {
-						return reject(new Error('Password Incorrect'))
-					}
+					})
+
+					database.removeRow(filePath)
+
+					const routes = [`/download/${id}`, `/share/${id}`]
+
+					routes.map(route => {
+						routeRemover.removeRouteByPath(app, route, (error) => {
+							if (error) {
+								return reject(error)
+							}
+						})
+					})
+
+					resolve()
 				})
 			})
 		} catch(error) {
-			if (error.message === 'Password Incorrect') {
-				res.status(status.unauthorized).send('Permission Denied')
-			} else {
-				console.error(new Error(error.message))
-			}
+			console.error(error)
 		}
 	})
 }
@@ -231,55 +238,52 @@ function addTempRoutes(id, filePath) {
  * @param {express-fileupload} file
  * @param {string} password
  */
-
 app.post('/upload', async(req, res) => {
 	try {
 		await new Promise((resolve, reject) => {
 			const id = uuid()
 			const fileDir = path.join(storageDir, prefix + '-') + id
-			const file = req.files.file
-			const password = req.body.password
 			const email = req.body.email.length > 0 ? req.body.email : null
-			const filePath = path.join(fileDir, file.name)
-			const saltRounds = 10
+			const filePath = path.join(fileDir, req.files.file.name)
 
 			fs.mkdir(fileDir, (error) => {
 				if (error) {
-					return reject(new Error(error.message))
+					return reject(error)
 				}
 			})
 
-			file.mv(filePath, (error) => {
+			req.files.file.mv(filePath, (error) => {
 				if (error) {
-					return reject(new Error(error.message))
+					return reject(error)
 				}
 
-				encryptor.encryptFile(filePath, filePath + '.data', password, (error) => {
+				encryptor.encryptFile(filePath, filePath + '.data', req.body.password, (error) => {
 					if (error) {
-						return reject(new Error(error.message))
+						return reject(error)
 					}
+
+					res.redirect('/share/' + id)
 
 					fs.unlink(filePath, (error) => {
 						if (error) {
-							return reject(new Error(error.message))
+							return reject(error)
 						}
 					})
+
+					resolve()
 				})
 			})
 
-			database.addRow(email, password, filePath, saltRounds, (error) => {
+			database.addRow(email, req.body.password, filePath, (error) => {
 				if (error) {
-					return reject(new Error(error.message))
+					return reject(error)
 				}
 			})
 
 			addTempRoutes(id, filePath)
-
-			res.redirect('/share/' + id)
-			resolve()
 		})
 	} catch(error) {
-		console.error(new Error(error.message))
+		console.error(error)
 	}
 })
 
@@ -291,21 +295,21 @@ const maxAge = 3600000
 app.listen(port, () => {
 	database.recreateDatabase((error) => {
 		if (error) {
-			console.error(new Error(error.message))
+			console.error(error)
 		}
 	})
 
 	schedule.scheduleJob('0 * * * *', () => {
 		cleanupAllUnclaimed((error) => {
 			if (error) {
-				console.error(new Error(error.message))
+				console.error(error)
 			}
 		})
 	})
 
 	serveStaticFiles(path.join(__dirname, 'pages', 'static'), (error) => {
 		if (error) {
-			console.error(new Error(error.message))
+			console.error(error)
 		}
 	})
 
