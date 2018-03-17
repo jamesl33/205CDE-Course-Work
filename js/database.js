@@ -25,7 +25,7 @@ module.exports = {
      * @param {string} password - The users password.
 	 * @param {string} filePath - Path to file on the server.
 	 */
-	addRow: async(email, password, filePath, callback) => {
+	addRow: async(email, password, filePath) => {
 		try {
 			await new Promise((resolve) => {
 				const db = new database(dbName)
@@ -34,7 +34,7 @@ module.exports = {
 				resolve()
 			})
 		} catch(error) {
-			callback(new Error(error.message))
+			console.error(error)
 		}
 	},
 
@@ -43,7 +43,7 @@ module.exports = {
 	 * @description Removes a password from the database. Called when the user has claimed the download.
 	 * @param {string} filePath - Path to file on the server.
 	 */
-	removeRow: async(filePath, callback) => {
+	removeRow: async(filePath) => {
 		try {
 			await new Promise((resolve) => {
 				const db = new database(dbName)
@@ -52,7 +52,7 @@ module.exports = {
 				resolve()
 			})
 		} catch(error) {
-			callback(new Error(error.message))
+			console.error(error)
 		}
 	},
 
@@ -73,7 +73,7 @@ module.exports = {
 
 			callback(null, result)
 		} catch(error) {
-			callback(new Error(error.message))
+			callback(error)
 		}
 	},
 
@@ -81,7 +81,7 @@ module.exports = {
 	 * @name recreateDatabase
 	 * @description Used to remove then recreate the password database.
 	 */
-	recreateDatabase: async(callback) => {
+	recreateDatabase: async() => {
 		try {
 			await new Promise((resolve, reject) => {
 				fs.unlink(dbName, (error) => {
@@ -96,7 +96,7 @@ module.exports = {
 				})
 			})
 		} catch(error) {
-			callback(new Error(error.message))
+			console.error(error)
 		}
 	}
 }

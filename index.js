@@ -38,7 +38,7 @@ const status = {
  * @description Automatically serves static files in the given directory.
  * @param {string} staticPageDir
  */
-async function serveStaticFiles(staticPageDir, callback) {
+async function serveStaticFiles(staticPageDir) {
 	try {
 		await new Promise((resolve, reject) => {
 			fs.readdir(staticPageDir, (error, files) => {
@@ -62,7 +62,7 @@ async function serveStaticFiles(staticPageDir, callback) {
 			})
 		})
 	} catch(error) {
-		callback(error)
+		console.error(error)
 	}
 }
 
@@ -71,7 +71,7 @@ async function serveStaticFiles(staticPageDir, callback) {
  * @description Remove an unclamied folder
  * @param {string} name of folder to be removed
  */
-async function removeUnclaimedFolder(folder, callback) {
+async function removeUnclaimedFolder(folder) {
 	try {
 		await new Promise((resolve, reject) => {
 			let id = folder.split('-')
@@ -90,11 +90,7 @@ async function removeUnclaimedFolder(folder, callback) {
 				}
 
 				files.map(file => {
-					database.removeRow(file, (error) => {
-						if (error) {
-							return reject(error)
-						}
-					})
+					database.removeRow(file)
 				})
 			})
 
@@ -107,7 +103,7 @@ async function removeUnclaimedFolder(folder, callback) {
 			resolve()
 		})
 	} catch(error) {
-		callback(error)
+		console.error(error)
 	}
 }
 
@@ -117,7 +113,7 @@ async function removeUnclaimedFolder(folder, callback) {
  * @param {string} storageDir Directory to search in.
  * @param {string} prefix Prefix for the storage files {default: storage-}.
  */
-async function cleanupAllUnclaimed(callback) {
+async function cleanupAllUnclaimed() {
 	try {
 		await new Promise((resolve, reject) => {
 			fs.readdir(storageDir, (error, files) => {
@@ -139,11 +135,7 @@ async function cleanupAllUnclaimed(callback) {
 						const fileTime = new Date(stats.ctime).getTime() + maxAge
 
 						if (timeNow > fileTime) {
-							removeUnclaimedFolder(folder, (error) => {
-								if (error) {
-									return reject(error)
-								}
-							})
+							removeUnclaimedFolder(folder)
 						}
 					})
 				})
@@ -152,7 +144,7 @@ async function cleanupAllUnclaimed(callback) {
 			})
 		})
 	} catch(error) {
-		callback(error)
+		console.error(error)
 	}
 }
 
@@ -216,11 +208,7 @@ function addTempRoutes(id, filePath) {
 					const routes = [`/download/${id}`, `/share/${id}`]
 
 					routes.map(route => {
-						routeRemover.removeRouteByPath(app, route, (error) => {
-							if (error) {
-								return reject(error)
-							}
-						})
+						routeRemover.removeRouteByPath(app, route)
 					})
 
 					resolve()
@@ -274,11 +262,7 @@ app.post('/upload', async(req, res) => {
 				})
 			})
 
-			database.addRow(email, req.body.password, filePath, (error) => {
-				if (error) {
-					return reject(error)
-				}
-			})
+			database.addRow(email, req.body.password, filePath)
 
 			addTempRoutes(id, filePath)
 		})
@@ -293,25 +277,13 @@ const storageDir = '/tmp/'
 const maxAge = 3600000
 
 app.listen(port, () => {
-	database.recreateDatabase((error) => {
-		if (error) {
-			console.error(error)
-		}
-	})
+	database.recreateDatabase()
 
 	schedule.scheduleJob('0 * * * *', () => {
-		cleanupAllUnclaimed((error) => {
-			if (error) {
-				console.error(error)
-			}
-		})
+		cleanupAllUnclaimed()
 	})
 
-	serveStaticFiles(path.join(__dirname, 'pages', 'static'), (error) => {
-		if (error) {
-			console.error(error)
-		}
-	})
+	serveStaticFiles(path.join(__dirname, 'pages', 'static'))
 
 	console.log(`app listening on port ${port}`)
 })
