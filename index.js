@@ -157,7 +157,8 @@ function addTempRoutes(id, filePath) {
 		await new Promise((resolve) => {
 			res.render(path.join(__dirname, 'pages', 'dynamic', 'share.html'), {
 				locals: {
-					downloadUrl: `/download/${id}`
+					id: id,
+					fileName: path.basename(filePath),
 				}
 			})
 
@@ -169,7 +170,7 @@ function addTempRoutes(id, filePath) {
 		await new Promise((resolve) => {
 			res.render(path.join(__dirname, 'pages', 'dynamic', 'download.html'), {
 				locals: {
-					downloadUrl: `/download/${id}`
+					id: id
 				}
 			})
 

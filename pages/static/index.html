@@ -1,50 +1,76 @@
 <!DOCTYPE html>
 <html>
-    <head>
-        <meta charset="UTF-8">
-        <title>Private Share</title>
-        <link rel="stylesheet" type="text/css" href="/css/styles.css">
-    </head>
-    <body>
-        <nav class="nav main-nav">
-            <ul>
-                <li><a class="active" href="/">Home</a></li>
-                <li><a href="/upload.html">Upload</a></li>
-            </ul>
-        </nav>
-        <div class="expo">
-            <article>
-                <section>
-                    <heading style="font-size: 30px; color: #226B80; font-weight: bold;">Private Share</heading><br>
-                    <p1>Private Share is a simple file sharing web application which priorities privacy.<br> This is accomplished by forcing the use of a password allowing files to be<br> safely encrypted while they are stored on the server.</p1>
-                </section>
-                <br>
-                <section>
-                    <heading style="font-size: 20px; color: #226B80; font-weight: bold;">Why use Private Share?</heading>
-                    <ol style="padding-left: 1%;">
-                        <li>Files only stay on the internet for an hour.</li>
-                        <li>Files are encrypted with openssl while stored on the server.</li>
-                        <li>An Email will be sent to you when the file has been claimed.</li>
-                    </ol>
-                </section>
-            </article>
-        </div>
-        <div class="techniques">
-            <h1></h1>
-        </div>
-        <div class="techniques">
-            <h1></h1>
-        </div>
-        <footer>
-            <nav class="nav footer-nav">
-                <ul>
-                    <li><a href="https://github.coventry.ac.uk/leej64/205CDE-Course-Work">GitHub</a></li>
-                    <li><a href="/about.html">About</a></li>
-                </ul>
-            </nav>
-            <div itemscope itemtype="http://data-vocabulary.org/Person">
-                <p>Designed by <span itemprop="name">James Lee</span> as part of the 205CDE and 206CDE modules at <span itemprop="affiliation ">Coventry University</span>.</p>
-            </div>
-        </footer>
-    </body>
+	<head>
+		<meta charset="UTF-8">
+		<title>Private Share</title>
+		<link rel="stylesheet" type="text/css" href="/css/styles.css">
+	</head>
+	<body>
+		<nav class="nav main-nav">
+			<ul>
+				<li><a class="active" href="/">Home</a></li>
+				<li><a href="/upload.html">Upload</a></li>
+			</ul>
+		</nav>
+		<div class="expo">
+			<article>
+				<h2 style="font-size: 30px; color: #226B80; font-weight: bold;">Private Share</h2>
+				Private Share is a simple file sharing web application which<br> priorities privacy. This is accomplished by forcing the use of<br> a password allowing files to be safely encrypted while they<br> are stored on the server.<br><br>
+				<section>
+					<h2 style="font-size: 20px; color: #226B80; font-weight: bold; padding-bottom: 0.5em">Why use Private Share?</h2>
+					<ol style="padding-left: 1%;">
+						<li>Files only stay on the internet for an hour.</li>
+						<li>Files are encrypted with openssl while stored on the server.</li>
+						<li>An Email will be sent to you when the file has been claimed.</li>
+					</ol>
+				</section>
+			</article>
+		</div>
+		<div class="techniques upload">
+			<article>
+				<h2 style="color: #226B80; font-weight: bold; padding-bottom: 0.5em;">Upload</h2>
+				<section>
+					To upload a file simply navigate to the <a href="/upload.html">upload<a> page.<br><br>
+					<ol style="padding-left: 2%;">
+						<li>Drag and drop a file into the denoted area or select a file.</li>
+						<li>Optionally enter an email your email (This will be used to notify you that your download link has been claimed).</li>
+						<li>Enter a password (This will be used to encrypt the file).</li>
+						<li>Press the submit button.</li>
+					</ol><br>
+					<ul style="padding-left: 2%;">
+						<li>The stored file will be automatically purged from the server after and hour.</li>
+						<li>The file will only be available for one download.</li>
+					</ul>
+				</section>
+			</article>
+		</div>
+		<div class="techniques download">
+			<article>
+				<h2 style="color: #226B80; font-weight: bold; padding-bottom: 0.5em;">Download</h2>
+				<section>
+					To download a file you will need a 'download' link. This will have been given to you by the person who uploaded the file.<br><br>
+					<ol style="padding-left: 2%;">
+						<li>Enter the download URL into the search bar on your browser.</li>
+						<li>Enter the password which was chosen when the file was uploaded.</li>
+						<li>You should then get a download which is the decrypted file.</li>
+					</ol><br>
+					<ul style="padding-left: 2%">
+						<li>Once the file has been downloaded</li>
+						<li>Bear in mind that if you cancel the download the file will still be removed from the server.</li>
+					</ul>
+				</section>
+			</article>
+		</div>
+		<footer>
+			<nav class="nav footer-nav">
+				<ul>
+					<li><a href="https://github.coventry.ac.uk/205CDE-1718JANMAY/205CDE-Course-Work">GitHub</a></li>
+					<li><a href="/about.html">About</a></li>
+				</ul>
+			</nav>
+			<div itemscope itemtype="http://data-vocabulary.org/Person">
+				<p>Designed by <span itemprop="name">James Lee</span> as part of the 205CDE and 206CDE modules at <span itemprop="affiliation ">Coventry University</span>.</p>
+			</div>
+		</footer>
+	</body>
 </html>
