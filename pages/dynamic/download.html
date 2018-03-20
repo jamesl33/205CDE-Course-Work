@@ -13,9 +13,10 @@
 				<li><a class="active" href="/download/${id}">Download</a></li>
 			</ul>
 		</nav>
-		<div class="encode-form" style="padding-top: 5em">
+		<div class="decode-form">
+			<h2 style="font-size: 20px; color: #226B80; font-weight: bold; padding-bottom: 0.5em;">Enter the password to decrypt the file</h2>
 			<form action="/download/${id}" method="post" encType="multipart/form-data">
-				<input type="password" name="password"/ required>
+				<input type="password" name="password" required/>
 				<input type="submit"/>
 			</form>
 		</div>
