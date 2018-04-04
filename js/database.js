@@ -18,6 +18,21 @@ const bcryptPreferences = {
 }
 
 module.exports = {
+	getEmail: async(filePath, callback) => {
+		try {
+			const result = await new Promise((resolve) => {
+				const db = new database(dbName)
+				const row = db.prepare('select * from passwords where file_path = ?').get(filePath)
+				db.close()
+				resolve(row.email)
+			})
+
+			callback(null, result)
+		} catch(error) {
+			console.error(error)
+		}
+	},
+
 	/**
 	 * @name addRow
 	 * @description Add a filePath/password entry to the database. Called when the user uploads a file to the server.

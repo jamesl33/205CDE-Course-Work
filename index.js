@@ -14,7 +14,9 @@ const es6Renderer = require('express-es6-template-engine')
 const express = require('express')
 const fileUpload = require('express-fileupload')
 const fs = require('fs')
+const nodemailer = require('nodemailer')
 const path = require('path').posix
+const QRCode = require('qrcode')
 const rimraf = require('rimraf')
 const routeRemover = require('./js/express-route-remover.js')
 const schedule = require('node-schedule')
@@ -154,12 +156,19 @@ async function cleanupAllUnclaimed() {
  */
 function addTempRoutes(id, filePath) {
 	app.get('/share/' + id, async(req, res) => {
-		await new Promise((resolve) => {
-			res.render(path.join(__dirname, 'pages', 'dynamic', 'share.html'), {
-				locals: {
-					id: id,
-					fileName: path.basename(filePath),
+		await new Promise((resolve, reject) => {
+			QRCode.toDataURL('localhost:8080/download/' + id, (error, url) => {
+				if (error) {
+					reject(error)
 				}
+
+				res.render(path.join(__dirname, 'pages', 'dynamic', 'share.html'), {
+					locals: {
+						id: id,
+						fileName: path.basename(filePath),
+						qrcode: url
+					}
+				})
 			})
 
 			resolve()
@@ -202,6 +211,35 @@ function addTempRoutes(id, filePath) {
 								return reject(error)
 							}
 						})
+					})
+
+					database.getEmail(filePath, (error, result) => {
+						if (error) {
+							console.error(error)
+						}
+
+						if (result !== '' && result !== null) {
+							const transporter = nodemailer.createTransport({
+							  	service: 'gmail',
+							  	auth: {
+							    	user: '',
+							    	pass: ''
+							  	}
+							})
+
+							const mailOptions = {
+							  	from: '',
+							  	to: result,
+							  	subject: 'Private Share File Claimed',
+							  	text: `Your file '${path.basename(filePath)}' has been downloaded`
+							}
+
+							transporter.sendMail(mailOptions, (error) => {
+							  	if (error) {
+							    	console.error(error)
+							  	}
+							})
+						}
 					})
 
 					database.removeRow(filePath)
