@@ -17,11 +17,11 @@
 			<form action="/upload" method="post" encType="multipart/form-data">
 				<input id="formFiles" type="file" name="file" onchange="updateUploadForm();" required/>
 				<label id="formInfo">Drag your files here or click in this area!</label>
-				<input style="margin-right: 1em; margin-top: 2%; border: 1px solid #226B80; padding: 2px;" type="email" name="email">
-				<label>Email (optional)</label><br>
-				<input style="margin-right: 1em; margin-top: 2%; border: 1px solid #226B80; padding: 2px;" type="password" name="password" required/>
-				<label>Password</label><br>
-				<input style="margin-top: 2%; padding: 0.5em; padding-left: 2%; padding-right: 2%; border-color: #226B80;" type="submit" value="Upload"/>
+				<label style="display: inline-block; padding-top: 2%; padding-right: 10px">Email (optional)</label>
+				<input style="margin-top: 2%; border: 1px solid #226B80; padding: 2px; width: 78%;" type="email" name="email">
+				<label style="display: inline-block; padding-top: 2%; padding-right: 50px">Password</label>
+				<input style="margin-top: 2%; border: 1px solid #226B80; padding: 2px; width: 78%;" type="password" name="password" required/>
+				<input style="margin-top: 2%; padding: 0.5em; padding-left: 4%; padding-right: 4%; border-color: #226B80; float: right;" type="submit" value="Upload"/>
 			</form>
 		</div>
 		<footer class="fixed">

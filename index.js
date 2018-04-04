@@ -196,7 +196,7 @@ function addTempRoutes(id, filePath) {
 					}
 
 					if (!result) {
-						return res.status(status.unauthorized).send('Permission Denied')
+						return res.redirect('/download/' + id)
 					}
 
 					encryptor.decryptFile(filePath + '.data', filePath, req.body.password, (error) => {
