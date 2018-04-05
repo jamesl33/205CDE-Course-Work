@@ -4,6 +4,7 @@
 		<meta charset="UTF-8">
 		<title>Private Share</title>
 		<link rel="stylesheet" type="text/css" href="/css/styles.css">
+		<script src="/js/copy-to-clipboard.js"></script>
 	</head>
 	<body>
 		<nav class="nav main-nav">
@@ -19,7 +20,8 @@
 			</div>
 			<div><img style="padding-left: 35%; padding-bottom: 1em;" src="${qrcode}"></div>
 			<div>
-				<input style="border: 1px solid #226B80; padding: 2px;" type="url" value="localhost:8080/download/${id}">
+				<input id="shareURL" style="border: 1px solid #226B80; padding: 5px;" type="url" value="localhost:8080/download/${id}" readonly>
+				<button style="padding: 6px; padding-left: 15px; padding-right: 15px; border-color: #226B80;" onclick="copyToClipboard()">Copy</button>
 			</div>
 		</div>
 		<footer class="fixed">

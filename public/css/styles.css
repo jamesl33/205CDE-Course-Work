@@ -46,7 +46,7 @@ nav.main-nav ul li a:hover:not(.active) {
 }
 
 .expo {
-    margin-top: 3.4em;
+    margin-top: 5em;
     height: 40em;
     width: 100%;
 }
@@ -144,7 +144,7 @@ div.share {
 }
 
 .share input[type=url] {
-	width: 100%;
+	width: 85%;
 	font-size: 1em;
 }
 
