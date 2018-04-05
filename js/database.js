@@ -18,6 +18,12 @@ const bcryptPreferences = {
 }
 
 module.exports = {
+	/**
+	 * @name getEmail
+	 * @description Get the email corresponding to a files path.
+	 * @param {string} filePath - Path to file on the server.
+	 * @param {function} callback - The function which the error/result is passed too.
+	 */
 	getEmail: async(filePath, callback) => {
 		try {
 			const result = await new Promise((resolve) => {
