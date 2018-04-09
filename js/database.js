@@ -2,7 +2,7 @@
 
 /**
  * @author James Lee
- * A simple module which facilitate the management of a path/password database.
+ * A simple module which facilitates the management of a path/password database.
  */
 
 'use strict'
@@ -19,7 +19,6 @@ const bcryptPreferences = {
 
 module.exports = {
 	/**
-	 * @name getEmail
 	 * @description Get the email corresponding to a files path.
 	 * @param {string} filePath - Path to file on the server.
 	 * @param {function} callback - The function which the error/result is passed too.
@@ -40,7 +39,6 @@ module.exports = {
 	},
 
 	/**
-	 * @name addRow
 	 * @description Add a filePath/password entry to the database. Called when the user uploads a file to the server.
      * @param {string} email - The users email
      * @param {string} password - The users password.
@@ -60,7 +58,6 @@ module.exports = {
 	},
 
 	/**
-	 * @name removeRow
 	 * @description Removes a password from the database. Called when the user has claimed the download.
 	 * @param {string} filePath - Path to file on the server.
 	 */
@@ -78,7 +75,6 @@ module.exports = {
 	},
 
 	/**
-	 * @name checkPassword
 	 * @description Check the users password with the password in the database. Used to grant access to the file on the server.
 	 * @param {string} filePath - Path to file on the server.
 	 * @param {string} password - The users password.
@@ -99,7 +95,6 @@ module.exports = {
 	},
 
 	/**
-	 * @name recreateDatabase
 	 * @description Used to remove then recreate the password database.
 	 */
 	recreateDatabase: async() => {
