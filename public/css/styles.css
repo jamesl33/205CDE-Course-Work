@@ -151,7 +151,7 @@ div.share {
 .decode-form {
 	width: 35em;
 	margin: 0 auto;
-	padding-top: 15%;
+	padding-top: 18%;
 }
 
 .decode-form input[type=password] {
@@ -164,4 +164,18 @@ div.share {
 	margin-left: 0.5em;
 	padding-left: 5px;
 	padding-right: 5px;
+}
+
+.heading {
+	font-size: 30px;
+	color: #226B80;
+	font-weight: bold;
+	padding-bottom: 0.5%;
+}
+
+.secondary-heading {
+	font-size: 20px;
+	color: #226B80;
+	font-weight: bold;
+	padding-bottom: 0.5%;
 }
