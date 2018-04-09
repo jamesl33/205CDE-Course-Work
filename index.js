@@ -223,6 +223,23 @@ function addTempRoutes(id, filePath) {
 	})
 }
 
+async function restoreRoutes() {
+	database.getAllRoutes((error, rows) => {
+		if (error) {
+			console.error(error)
+		}
+
+		rows.map(row => {
+			const filePath = row.file_path
+			let id = path.basename(path.dirname(filePath))
+			id = id.split('-')
+			id.shift()
+			id = id.join('-')
+			addTempRoutes(id, filePath)
+		})
+	})
+}
+
 
 const port = 8080
 const prefix = 'storage'
@@ -230,7 +247,7 @@ const storageDir = '/tmp/'
 const maxAge = 3600000
 
 app.listen(port, () => {
-	database.recreateDatabase()
+	restoreRoutes()
 
 	schedule.scheduleJob('0 * * * * *', () => {
 		garbageCollection.cleanupAllUnclaimed(app, storageDir, prefix, maxAge)

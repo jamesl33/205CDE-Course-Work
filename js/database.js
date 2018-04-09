@@ -120,5 +120,20 @@ module.exports = {
 		} catch(error) {
 			console.error(error)
 		}
+	},
+
+	getAllRoutes: async(callback) => {
+		try {
+			const result = await new Promise((resolve) => {
+				const db = new database(dbName)
+				const rows = db.prepare('select * from passwords').all()
+				db.close()
+				resolve(rows)
+			})
+
+			callback(null, result)
+		} catch(error) {
+			callback(error)
+		}
 	}
 }
