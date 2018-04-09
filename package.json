@@ -21,7 +21,8 @@
   },
   "devDependencies": {
     "eslint": "^4.18.2",
-    "jsdoc": "^3.5.5"
+    "jsdoc": "^3.5.5",
+    "jsdoc-route-plugin": "^0.1.0"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
