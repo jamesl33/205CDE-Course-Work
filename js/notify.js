@@ -5,6 +5,10 @@
  * A simple NodeJS module for sending notification emails to the user
  */
 
+/**
+ * @module Notify
+ */
+
 'use strict'
 
 const nodemailer = require('nodemailer')
@@ -18,26 +22,34 @@ module.exports = {
 	* @param {string} toEmail - Which email address to send the message too.
 	* @param {string} fileName - The name of the file which has been downloaded
 	*/
-	notifyFileClaimed: function(toEmail, fileName) {
-		const transporter = nodemailer.createTransport({
-		  	service: 'gmail',
-		  	auth: {
-		    	user: fromEmail,
-		    	pass: fromEmailPassword
-		  	}
-		})
+	notifyFileClaimed: async(toEmail, fileName) => {
+		try {
+			await new Promise((resolve, reject) => {
+				const transporter = nodemailer.createTransport({
+				  	service: 'gmail',
+				  	auth: {
+				    	user: fromEmail,
+				    	pass: fromEmailPassword
+				  	}
+				})
 
-		const mailOptions = {
-		  	from: '',
-		  	to: toEmail,
-		  	subject: 'Private Share File Claimed',
-		  	text: `Your file ${fileName} has been downloaded`
+				const mailOptions = {
+				  	from: '',
+				  	to: toEmail,
+				  	subject: 'Private Share File Claimed',
+				  	text: `Your file ${fileName} has been downloaded`
+				}
+
+				transporter.sendMail(mailOptions, (error) => {
+				  	if (error) {
+				    	reject(error)
+				  	}
+				})
+
+				resolve()
+			})
+		} catch(error) {
+			console.error(error)
 		}
-
-		transporter.sendMail(mailOptions, (error) => {
-		  	if (error) {
-		    	console.error(error)
-		  	}
-		})
 	}
 }

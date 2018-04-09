@@ -38,12 +38,12 @@ app.set('view engine', 'html')
 
 /**
  * @description Automatically serves static files in the given directory.
- * @param {string} staticPageDir - The directory which contains the static files to served
+ * @param {string} staticFileDir - The directory which contains the static files to served
  */
-async function serveStaticFiles(staticPageDir) {
+async function serveStaticFiles(staticFileDir) {
 	try {
 		await new Promise((resolve, reject) => {
-			fs.readdir(staticPageDir, (error, files) => {
+			fs.readdir(staticFileDir, (error, files) => {
 				if (error) {
 					return reject(error)
 				}
@@ -51,11 +51,11 @@ async function serveStaticFiles(staticPageDir) {
 				files.map(file => {
 					if (file === 'index.html') {
 						app.get('/', (req, res) => {
-							res.sendFile(path.join(staticPageDir, file))
+							res.sendFile(path.join(staticFileDir, file))
 						})
 					} else {
 						app.get(path.join('/', file), (req, res) => {
-							res.sendFile(path.join(staticPageDir, file))
+							res.sendFile(path.join(staticFileDir, file))
 						})
 					}
 				})
@@ -69,9 +69,11 @@ async function serveStaticFiles(staticPageDir) {
 }
 
 /**
- * @description The link from which the user uploads the file that they want to share.
- * @param {express-fileupload} file
- * @param {string} password
+ * @name uploadFile
+ * @route {post} /upload
+ * @description The link at which the user uploads the file that they want to share.
+ * @bodyparam {express-fileupload} file - File uploaded by the user.
+ * @bodyparam {string} password - Password uploaded by the user.
  */
 app.post('/upload', async(req, res) => {
 	try {
@@ -119,8 +121,14 @@ app.post('/upload', async(req, res) => {
 
 /**
  * @description Creates the temporary routes which are relevent to accessing and sharing a file.
+ * @param {string} id - The id as reference for the current file {Used to maintain concurrency}.
+ * @param {string} filePath - The path to the file stored on the server.
  */
 function addTempRoutes(id, filePath) {
+	/**
+	 * @name sharePage
+	 * @route {get} /share/{id}
+	 */
 	app.get('/share/' + id, async(req, res) => {
 		await new Promise((resolve, reject) => {
 			QRCode.toDataURL('localhost:8080/download/' + id, (error, url) => {
@@ -141,6 +149,10 @@ function addTempRoutes(id, filePath) {
 		})
 	})
 
+	/**
+	 * @name downloadPage
+	 * @route {get} /download/{id}
+	 */
 	app.get('/download/' + id, async(req, res) => {
 		await new Promise((resolve) => {
 			res.render(path.join('..', 'pages', 'dynamic', 'download.html'), {
@@ -153,6 +165,11 @@ function addTempRoutes(id, filePath) {
 		})
 	})
 
+	/**
+	 * @name downloadFile
+	 * @route {post} /download/{id}
+	 * @bodyparam {string} password - The password used to allow access to the encrypted file.
+	 */
 	app.post('/download/' + id, async(req, res) => {
 		try {
 			await new Promise((resolve, reject) => {

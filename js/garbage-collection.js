@@ -5,22 +5,26 @@
  * A simple module to allow the deletion of old files for Private Share
  */
 
+/**
+ * @module Garbage Collector
+ */
+
 'use strict'
 
 const database = require('./database.js')
-const dynamicRoutes = require('./dynamic-routes.js')
+const routeRemover = require('./express-route-remover.js')
 const fs = require('fs')
 const path = require('path').posix
 const rimraf = require('rimraf')
 
 module.exports = {
 	/**
-	 * @description Remove an unclamied folder
-	 * @param {string} name of folder to be removed
+	 * @description Remove and unclaimed file download and it's Express routes.
+	 * @param {express-router} app - The current Express router.
+	 * @param {string} storageDir - The directory where files are being stored.
+	 * @param {string} folder - Path to folder to be removed.
 	 */
-	removeUnclaimedFolder: async function(app, storageDir, folder) {
-		console.log('Removed File')
-
+	removeUnclaimedFolder: async(app, storageDir, folder) => {
 		try {
 			await new Promise((resolve, reject) => {
 				let id = folder.split('-')
@@ -30,7 +34,7 @@ module.exports = {
 				const routes = ['/' + id, '/share/' + id, '/download/' + id]
 
 				routes.map(route => {
-					dynamicRoutes.removeRouteByPath(app, route)
+					routeRemover.removeRouteByPath(app, route)
 				})
 
 				fs.readdir(path.join(storageDir, folder), (error, files) => {
@@ -57,11 +61,12 @@ module.exports = {
 	},
 
 	/**
-	 * @description Remove any storage directories from the last time that the server was run.
-	 * @param {string} storageDir Directory to search in.
-	 * @param {string} prefix Prefix for the storage files {default: storage-}.
+	 * @description Remove all files which have been stored on the server for {maxAge} amount of time.
+	 * @param {string} storageDir - Directory where the server stores the files.
+	 * @param {string} prefix - Prefix for the storage files.
+	 * @param {integer} maxAge - How long a file can be stored on the server in seconds.
 	 */
-	cleanupAllUnclaimed: async function(app, storageDir, prefix, maxAge) {
+	cleanupAllUnclaimed: async(app, storageDir, prefix, maxAge) => {
 		try {
 			await new Promise((resolve, reject) => {
 				fs.readdir(storageDir, (error, files) => {
@@ -83,7 +88,7 @@ module.exports = {
 							const fileTime = new Date(stats.ctime).getTime() + maxAge
 
 							if (timeNow > fileTime) {
-								this.removeUnclaimedFolder(app, storageDir, folder)
+								module.exports.removeUnclaimedFolder(app, storageDir, folder)
 							}
 						})
 					})

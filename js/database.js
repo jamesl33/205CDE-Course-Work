@@ -5,6 +5,10 @@
  * A simple module which facilitates the management of a path/password database.
  */
 
+/**
+ * @module Database
+ */
+
 'use strict'
 
 const bcrypt = require('bcrypt')
@@ -22,12 +26,13 @@ module.exports = {
 	 * @description Get the email corresponding to a files path.
 	 * @param {string} filePath - Path to file on the server.
 	 * @param {function} callback - The function which the error/result is passed too.
+	 * @returns {string} - An email address.
 	 */
 	getEmail: async(filePath, callback) => {
 		try {
 			const result = await new Promise((resolve) => {
 				const db = new database(dbName)
-				const row = db.prepare('select * from passwords where file_path = ?').get(filePath)
+				const row = db.prepare('select (email) from passwords where file_path = ?').get(filePath)
 				db.close()
 				resolve(row.email)
 			})
@@ -78,6 +83,7 @@ module.exports = {
 	 * @description Check the users password with the password in the database. Used to grant access to the file on the server.
 	 * @param {string} filePath - Path to file on the server.
 	 * @param {string} password - The users password.
+	 * @returns {bool} True if the password matches.
 	 */
 	checkPassword: async(filePath, password, callback) => {
 		try {

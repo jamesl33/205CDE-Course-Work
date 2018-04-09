@@ -57,5 +57,8 @@ typings/
 # dotenv environment variables file
 .env
 
-# passwords database
+# Passwords database
 passwords.sqlite3
+
+# Generated documentation
+docs/
