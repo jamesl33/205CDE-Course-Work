@@ -59,6 +59,3 @@ typings/
 
 # Passwords database
 passwords.sqlite3
-
-# Generated documentation
-docs/
