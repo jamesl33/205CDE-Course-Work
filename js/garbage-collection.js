@@ -12,10 +12,10 @@
 'use strict'
 
 const database = require('./database.js')
-const routeRemover = require('./express-route-remover.js')
 const fs = require('fs')
 const path = require('path').posix
 const rimraf = require('rimraf')
+const routeRemover = require('./express-route-remover.js')
 
 module.exports = {
 	/**
