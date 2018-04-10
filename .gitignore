@@ -58,4 +58,4 @@ typings/
 .env
 
 # Passwords database
-passwords.sqlite3
+database.sqlite3

@@ -14,8 +14,9 @@
 
 const bcrypt = require('bcrypt')
 const database = require('better-sqlite3')
+const fs = require('fs')
 
-const dbName = 'passwords.sqlite3'
+const dbName = 'database.sqlite3'
 
 const bcryptPreferences = {
 	'saltRounds': 10
@@ -129,5 +130,15 @@ module.exports = {
 		} catch(error) {
 			callback(error)
 		}
+	},
+
+	createDatabase: () => {
+		if (fs.existsSync(dbName)) {
+			return
+		}
+
+		const db = new database(dbName)
+		db.prepare('CREATE TABLE passwords (email text, password_hash text NOT NULL, file_path text NOT NULL);').run()
+		db.close()
 	}
 }

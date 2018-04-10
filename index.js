@@ -14,6 +14,7 @@ const fileMangement = require('./js/file-management.js')
 const fileUpload = require('express-fileupload')
 const fs = require('fs')
 const garbageCollection = require('./js/garbage-collection.js')
+const database = require('./js/database.js')
 const path = require('path').posix
 const schedule = require('node-schedule')
 
@@ -66,6 +67,9 @@ const storageDir = '/tmp/'
 const maxAge = 3600000
 
 app.listen(port, () => {
+	// Create the database if it doesn't exist
+	database.createDatabase()
+
 	// Restore the routes from when the server was last run
 	fileMangement.restoreRoutes(app)
 
