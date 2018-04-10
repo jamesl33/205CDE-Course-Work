@@ -34,8 +34,7 @@ module.exports = {
 		try {
 			const result = await new Promise((resolve) => {
 				const db = new database(dbName)
-				const id = db.prepare('SELECT (id) FROM passwords WHERE file_path = ?').get(filePath).id
-				const email = db.prepare('SELECT (email) FROM users WHERE id = ?').get(id).email
+				const email = db.prepare('SELECT (email) FROM passwords JOIN users USING (id) WHERE file_path = ?').get(filePath).email
 				db.close()
 				resolve(email)
 			})
