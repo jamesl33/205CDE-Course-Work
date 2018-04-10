@@ -15,6 +15,7 @@
 const bcrypt = require('bcrypt')
 const database = require('better-sqlite3')
 const fs = require('fs')
+const uuid = require('uuid/v1')
 
 const dbName = 'database.sqlite3'
 
@@ -33,11 +34,10 @@ module.exports = {
 		try {
 			const result = await new Promise((resolve) => {
 				const db = new database(dbName)
-
-				// Get row which corresponds to this filePath
-				const row = db.prepare('select (email) from passwords where file_path = ?').get(filePath)
+				const id = db.prepare('SELECT (id) FROM passwords WHERE file_path = ?').get(filePath).id
+				const email = db.prepare('SELECT (email) FROM users WHERE id = ?').get(id).email
 				db.close()
-				resolve(row.email)
+				resolve(email)
 			})
 
 			callback(null, result)
@@ -56,9 +56,14 @@ module.exports = {
 		try {
 			await new Promise((resolve) => {
 				const db = new database(dbName)
+				const id = uuid()
+
+				// Add the transaction id and user email to the database
+				db.prepare('INSERT INTO users (id, email) VALUES (?, ?)').run(id, email)
 
 				// Add the user/file info into the database
-				db.prepare('INSERT INTO passwords (email, password_hash, file_path) VALUES (?, ?, ?)').run(email, bcrypt.hashSync(password, bcryptPreferences.saltRounds), filePath)
+				db.prepare('INSERT INTO passwords (id, password_hash, file_path) VALUES (?, ?, ?)').run(id, bcrypt.hashSync(password, bcryptPreferences.saltRounds), filePath)
+
 				db.close()
 				resolve()
 			})
@@ -75,9 +80,14 @@ module.exports = {
 		try {
 			await new Promise((resolve) => {
 				const db = new database(dbName)
+				const id = db.prepare('SELECT (id) FROM passwords WHERE file_path = ?').get(filePath).id
 
-				// Remove the row from the database which has this filePath
-				db.prepare('delete from passwords where file_path = ?').run(filePath)
+				// Remove row from passwords table to satisfy the foreign key constraint
+				db.prepare('DELETE from passwords WHERE id = ?').run(id)
+
+				// Remove the row from the users table
+				db.prepare('DELETE from users WHERE id = ?').run(id)
+
 				db.close()
 				resolve()
 			})
@@ -96,13 +106,9 @@ module.exports = {
 		try {
 			const result = await new Promise((resolve) => {
 				const db = new database(dbName)
-
-				// Get the row whose file_path is the one we are checking
-				const row = db.prepare('select * from passwords where file_path = ?').get(filePath)
+				const hash = db.prepare('SELECT (password_hash) FROM passwords WHERE file_path = ?').get(filePath).password_hash
 				db.close()
-
-				// Use bcrypt to compare the passwords
-				resolve(bcrypt.compareSync(password, row.password_hash))
+				resolve(bcrypt.compareSync(password, hash))
 			})
 
 			callback(null, result)
@@ -112,7 +118,7 @@ module.exports = {
 	},
 
 	/**
-	 * @description This function is used to get all the rows from the database. This function is used to recreate the express routes when the server is restarted.
+	 * @description This function is used to get all the relevent data from the database needed to recreate the Express routes.
 	 * @param {function} callback - A callback function where which all the rows from the database are passed to.
 	 */
 	getAllRoutes: async(callback) => {
@@ -138,7 +144,8 @@ module.exports = {
 		}
 
 		const db = new database(dbName)
-		db.prepare('CREATE TABLE passwords (email text, password_hash text NOT NULL, file_path text NOT NULL);').run()
+		db.prepare('CREATE TABLE users (id text PRIMARY KEY NOT NULL, email text)').run()
+		db.prepare('CREATE TABLE passwords (id text NOT NULL, password_hash text NOT NULL, file_path text NOT NULL, FOREIGN KEY(id) REFERENCES users(id));').run()
 		db.close()
 	}
 }
