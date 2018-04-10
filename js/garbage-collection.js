@@ -34,6 +34,7 @@ module.exports = {
 				const routes = ['/' + id, '/share/' + id, '/download/' + id]
 
 				routes.map(route => {
+					// Remove all the routes which we created with addTempRoutes
 					routeRemover.removeRouteByPath(app, route)
 				})
 
@@ -43,10 +44,12 @@ module.exports = {
 					}
 
 					files.map(file => {
+						// Remove the infomation about the user/file from the database
 						database.removeRow(file)
 					})
 				})
 
+				// Remove the file from the servers storageDir
 				rimraf(path.join(storageDir, folder), (error) => {
 					if (error) {
 						return reject(error)
@@ -69,16 +72,19 @@ module.exports = {
 	cleanupAllUnclaimed: async(app, storageDir, prefix, maxAge) => {
 		try {
 			await new Promise((resolve, reject) => {
+				// Get an array of all of files in the storage directory
 				fs.readdir(storageDir, (error, files) => {
 					if (error) {
 						return reject(error)
 					}
 
 					files.map(folder => {
+						// Ignore folders which are not to do with this application
 						if (folder.split('-').shift() !== prefix) {
 							return
 						}
 
+						// Get the stats of a file
 						fs.stat(path.join(storageDir, folder), (error, stats) => {
 							if (error) {
 								return reject(error)
@@ -88,6 +94,7 @@ module.exports = {
 							const fileTime = new Date(stats.ctime).getTime() + maxAge
 
 							if (timeNow > fileTime) {
+								// If the file is older than 'maxAge' remove it
 								module.exports.removeUnclaimedFolder(app, storageDir, folder)
 							}
 						})

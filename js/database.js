@@ -3,6 +3,7 @@
 /**
  * @author James Lee
  * A simple module which facilitates the management of a path/password database.
+ * All of the database operations are sanitised therefore shouldn't be vulnerable to SQL injection.
  */
 
 /**
@@ -13,7 +14,6 @@
 
 const bcrypt = require('bcrypt')
 const database = require('better-sqlite3')
-const fs = require('fs')
 
 const dbName = 'passwords.sqlite3'
 
@@ -32,6 +32,8 @@ module.exports = {
 		try {
 			const result = await new Promise((resolve) => {
 				const db = new database(dbName)
+
+				// Get row which corresponds to this filePath
 				const row = db.prepare('select (email) from passwords where file_path = ?').get(filePath)
 				db.close()
 				resolve(row.email)
@@ -53,6 +55,8 @@ module.exports = {
 		try {
 			await new Promise((resolve) => {
 				const db = new database(dbName)
+
+				// Add the user/file info into the database
 				db.prepare('INSERT INTO passwords (email, password_hash, file_path) VALUES (?, ?, ?)').run(email, bcrypt.hashSync(password, bcryptPreferences.saltRounds), filePath)
 				db.close()
 				resolve()
@@ -70,6 +74,8 @@ module.exports = {
 		try {
 			await new Promise((resolve) => {
 				const db = new database(dbName)
+
+				// Remove the row from the database which has this filePath
 				db.prepare('delete from passwords where file_path = ?').run(filePath)
 				db.close()
 				resolve()
@@ -89,36 +95,18 @@ module.exports = {
 		try {
 			const result = await new Promise((resolve) => {
 				const db = new database(dbName)
+
+				// Get the row whose file_path is the one we are checking
 				const row = db.prepare('select * from passwords where file_path = ?').get(filePath)
 				db.close()
+
+				// Use bcrypt to compare the passwords
 				resolve(bcrypt.compareSync(password, row.password_hash))
 			})
 
 			callback(null, result)
 		} catch(error) {
 			callback(error)
-		}
-	},
-
-	/**
-	 * @description Used to remove then recreate the password database.
-	 */
-	recreateDatabase: async() => {
-		try {
-			await new Promise((resolve, reject) => {
-				fs.unlink(dbName, (error) => {
-					if (error && error.code !== 'ENOENT') {
-						return reject(new Error(error.message))
-					}
-
-					const db = new database(dbName)
-					db.prepare('CREATE TABLE passwords (email text, password_hash text NOT NULL, file_path text NOT NULL);').run()
-					db.close()
-					resolve()
-				})
-			})
-		} catch(error) {
-			console.error(error)
 		}
 	},
 
@@ -130,6 +118,8 @@ module.exports = {
 		try {
 			const result = await new Promise((resolve) => {
 				const db = new database(dbName)
+
+				// Get everything from the database
 				const rows = db.prepare('select * from passwords').all()
 				db.close()
 				resolve(rows)

@@ -22,11 +22,14 @@ module.exports = {
 			await new Promise((resolve) => {
 				app._router.stack.map((route, index) => {
 					if (route.path === path) {
+						// Remove the route if it contains the correct path
 						app._router.stack.splice(index, 1)
 					}
 
+					// Attempt to go one layer deeper (if this is not done some paths will remain)
 					try {
 						if (route.route.path === path) {
+							// Remove the route if it contains the correct path
 							app._router.stack.splice(index, 1)
 						}
 					} catch (TypeError) {

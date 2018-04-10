@@ -13,7 +13,10 @@
 
 const nodemailer = require('nodemailer')
 
+// Email used to send an email to the user
 const fromEmail = ''
+
+// Password to the email account ^^
 const fromEmailPassword = ''
 
 module.exports = {

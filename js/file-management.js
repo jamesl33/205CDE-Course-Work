@@ -26,31 +26,44 @@ const status = {
 }
 
 module.exports = {
+	/**
+	 * @description Reconstruct routes to files using the data from the database.
+	 * @param {express-router} - The current express router.
+	 */
 	restoreRoutes: (app) => {
 		database.getAllRoutes((error, rows) => {
 			if (error) {
 				console.error(error)
 			}
 
+			// For all the rows in the database
 			rows.map(row => {
 				const filePath = row.file_path
 				let id = path.basename(path.dirname(filePath))
 				id = id.split('-')
 				id.shift()
 				id = id.join('-')
+
+				// Get the filePath and id and just readd the temp routes
 				module.exports.addTempRoutes(app, id, filePath)
 			})
 		})
 	},
 
 	/**
-	 * @name uploadFile
-	 * @route {post} /upload
-	 * @description The link at which the user uploads the file that they want to share.
-	 * @bodyparam {express-fileupload} file - File uploaded by the user.
-	 * @bodyparam {string} password - Password uploaded by the user.
+	 * @description Create the Express route to the upload page; allowing people to upload files to the server.
+	 * @param {express-router} app - The current express router.
+	 * @param {string} storageDir - The path to the directory where the files are being stored.
+	 * @parm {string} prefix - The prefix used for the storage folders.
 	 */
 	acceptUploads: (app, storageDir, prefix) => {
+		/**
+		 * @name uploadFile
+		 * @route {post} /upload
+		 * @description The link at which the user uploads the file that they want to share.
+		 * @bodyparam {express-fileupload} file - File uploaded by the user.
+		 * @bodyparam {string} password - Password uploaded by the user.
+		 */
 		app.post('/upload', async(req, res) => {
 			try {
 				await new Promise((resolve, reject) => {
@@ -59,17 +72,20 @@ module.exports = {
 					const email = req.body.email.length > 0 ? req.body.email : null
 					const filePath = path.join(fileDir, req.files.file.name)
 
+					// Make the directory where the file will be stored
 					fs.mkdir(fileDir, (error) => {
 						if (error) {
 							return reject(error)
 						}
 					})
 
+					// Move the users file into the directory
 					req.files.file.mv(filePath, (error) => {
 						if (error) {
 							return reject(error)
 						}
 
+						// Encrypt the users file
 						encryptor.encryptFile(filePath, filePath + '.data', req.body.password, (error) => {
 							if (error) {
 								return reject(error)
@@ -77,6 +93,7 @@ module.exports = {
 
 							res.redirect('/share/' + id)
 
+							// Remove the unencrypted file
 							fs.unlink(filePath, (error) => {
 								if (error) {
 									return reject(error)
@@ -87,6 +104,7 @@ module.exports = {
 						})
 					})
 
+					// Add the info about the file/user into the database
 					database.addRow(email, req.body.password, filePath)
 					module.exports.addTempRoutes(app, id, filePath)
 				})
@@ -97,7 +115,8 @@ module.exports = {
 	},
 
 	/**
-	 * @description Creates the temporary routes which are relevent to accessing and sharing a file.
+	 * @description Creates the temporary routes which are relevant to accessing and sharing a file.
+	 * @param {express-router} - The current express router.
 	 * @param {string} id - The id as reference for the current file {Used to maintain concurrency}.
 	 * @param {string} filePath - The path to the file stored on the server.
 	 */
@@ -105,9 +124,11 @@ module.exports = {
 		/**
 		 * @name sharePage
 		 * @route {get} /share/{id}
+		 * @description The custom share page which contains a QRCode and the URL to the file download.
 		 */
 		app.get('/share/' + id, async(req, res) => {
 			await new Promise((resolve, reject) => {
+				// The domain name is hardcoded and would need to be changed if hosting on an actual server
 				QRCode.toDataURL('localhost:8080/download/' + id, (error, url) => {
 					if (error) {
 						reject(error)
@@ -129,6 +150,7 @@ module.exports = {
 		/**
 		 * @name downloadPage
 		 * @route {get} /download/{id}
+		 * @description The download page which is where the user enters the password to gain access to the file download.
 		 */
 		app.get('/download/' + id, async(req, res) => {
 			await new Promise((resolve) => {
@@ -145,6 +167,7 @@ module.exports = {
 		/**
 		 * @name downloadFile
 		 * @route {post} /download/{id}
+		 * @description The route which actually tests the passwords and either does/doesn't give access to the file.
 		 * @bodyparam {string} password - The password used to allow access to the encrypted file.
 		 */
 		app.post('/download/' + id, async(req, res) => {
@@ -156,9 +179,11 @@ module.exports = {
 						}
 
 						if (!result) {
+							// If the password is incorrect redirect to the same page with an unauthorised status
 							return res.status(status.unauthorized).redirect('/download/' + id)
 						}
 
+						// Decrypt the file using the given password
 						encryptor.decryptFile(filePath + '.data', filePath, req.body.password, (error) => {
 							if (error) {
 								return reject(error)
@@ -166,6 +191,7 @@ module.exports = {
 
 							res.download(filePath)
 
+							// Remove the file once it has been downloaded
 							rimraf(path.dirname(filePath), (error) => {
 								if (error) {
 									return reject(error)
@@ -179,6 +205,7 @@ module.exports = {
 							}
 
 							if (result !== '' && result !== null) {
+								// If the user gave an email, send a notification email
 								notify.notifyFileClaimed(result, path.basename(filePath))
 							}
 						})
@@ -187,6 +214,7 @@ module.exports = {
 
 						const routes = [`/download/${id}`, `/share/${id}`]
 
+						// Remove all the routes related to the file
 						routes.map(route => {
 							routeRemover.removeRouteByPath(app, route)
 						})

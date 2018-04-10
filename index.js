@@ -39,11 +39,13 @@ async function serveStaticFiles(staticFileDir) {
 				}
 
 				files.map(file => {
+					// Serve the Home Page at '/' instead of 'index.html'
 					if (file === 'index.html') {
 						app.get('/', (req, res) => {
 							res.sendFile(path.join(staticFileDir, file))
 						})
 					} else {
+						// Serve each static file where the route becomes its file name
 						app.get(path.join('/', file), (req, res) => {
 							res.sendFile(path.join(staticFileDir, file))
 						})
@@ -64,14 +66,18 @@ const storageDir = '/tmp/'
 const maxAge = 3600000
 
 app.listen(port, () => {
+	// Restore the routes from when the server was last run
 	fileMangement.restoreRoutes(app)
 
+	// Run the garbage collection service every minute
 	schedule.scheduleJob('0 * * * * *', () => {
 		garbageCollection.cleanupAllUnclaimed(app, storageDir, prefix, maxAge)
 	})
 
+	// Serve all the static files in the './pages/static/' folder
 	serveStaticFiles(path.join(__dirname, 'pages', 'static'))
 
+	// Start accepting uploads in our chosen storage directory with our chosen prefix
 	fileMangement.acceptUploads(app, storageDir, prefix)
 
 	console.log(`app listening on port ${port}`)
