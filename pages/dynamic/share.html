@@ -18,7 +18,7 @@
 			<div style="padding-bottom: 1em;">
 				<h1 style="text-align: center; font-size: 20px; color: #226B80; font-weight: bold;">Share - ${fileName}</h1>
 			</div>
-			<div><img style="padding-left: 35%; padding-bottom: 1em;" src="${qrcode}"></div>
+			<div><img style="padding-left: 35%; padding-bottom: 1em;" src="${qrcode}" alt="A QRCode containing the URL to the download page"></div>
 			<div>
 				<input id="shareURL" style="border: 1px solid #226B80; padding: 5px;" type="url" value="localhost:8080/download/${id}" readonly>
 				<button style="padding: 6px; padding-left: 15px; padding-right: 15px; border-color: #226B80;" onclick="copyToClipboard()">Copy</button>

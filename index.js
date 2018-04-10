@@ -223,7 +223,7 @@ function addTempRoutes(id, filePath) {
 	})
 }
 
-async function restoreRoutes() {
+function restoreRoutes() {
 	database.getAllRoutes((error, rows) => {
 		if (error) {
 			console.error(error)

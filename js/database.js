@@ -122,6 +122,10 @@ module.exports = {
 		}
 	},
 
+	/**
+	 * @description This function is used to get all the rows from the database. This function is used to recreate the express routes when the server is restarted.
+	 * @param {function} callback - A callback function where which all the rows from the database are passed to.
+	 */
 	getAllRoutes: async(callback) => {
 		try {
 			const result = await new Promise((resolve) => {
