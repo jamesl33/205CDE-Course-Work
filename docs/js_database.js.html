@@ -31,6 +31,7 @@
 /**
  * @author James Lee
  * A simple module which facilitates the management of a path/password database.
+ * All of the database operations are sanitised therefore shouldn't be vulnerable to SQL injection.
  */
 
 /**
@@ -42,8 +43,9 @@
 const bcrypt = require('bcrypt')
 const database = require('better-sqlite3')
 const fs = require('fs')
+const uuid = require('uuid/v1')
 
-const dbName = 'passwords.sqlite3'
+const dbName = 'database.sqlite3'
 
 const bcryptPreferences = {
 	'saltRounds': 10
@@ -60,9 +62,10 @@ module.exports = {
 		try {
 			const result = await new Promise((resolve) => {
 				const db = new database(dbName)
-				const row = db.prepare('select (email) from passwords where file_path = ?').get(filePath)
+				const id = db.prepare('SELECT (id) FROM passwords WHERE file_path = ?').get(filePath).id
+				const email = db.prepare('SELECT (email) FROM users WHERE id = ?').get(id).email
 				db.close()
-				resolve(row.email)
+				resolve(email)
 			})
 
 			callback(null, result)
@@ -81,7 +84,14 @@ module.exports = {
 		try {
 			await new Promise((resolve) => {
 				const db = new database(dbName)
-				db.prepare('INSERT INTO passwords (email, password_hash, file_path) VALUES (?, ?, ?)').run(email, bcrypt.hashSync(password, bcryptPreferences.saltRounds), filePath)
+				const id = uuid()
+
+				// Add the transaction id and user email to the database
+				db.prepare('INSERT INTO users (id, email) VALUES (?, ?)').run(id, email)
+
+				// Add the user/file info into the database
+				db.prepare('INSERT INTO passwords (id, password_hash, file_path) VALUES (?, ?, ?)').run(id, bcrypt.hashSync(password, bcryptPreferences.saltRounds), filePath)
+
 				db.close()
 				resolve()
 			})
@@ -98,7 +108,14 @@ module.exports = {
 		try {
 			await new Promise((resolve) => {
 				const db = new database(dbName)
-				db.prepare('delete from passwords where file_path = ?').run(filePath)
+				const id = db.prepare('SELECT (id) FROM passwords WHERE file_path = ?').get(filePath).id
+
+				// Remove row from passwords table to satisfy the foreign key constraint
+				db.prepare('DELETE from passwords WHERE id = ?').run(id)
+
+				// Remove the row from the users table
+				db.prepare('DELETE from users WHERE id = ?').run(id)
+
 				db.close()
 				resolve()
 			})
@@ -117,9 +134,9 @@ module.exports = {
 		try {
 			const result = await new Promise((resolve) => {
 				const db = new database(dbName)
-				const row = db.prepare('select * from passwords where file_path = ?').get(filePath)
+				const hash = db.prepare('SELECT (password_hash) FROM passwords WHERE file_path = ?').get(filePath).password_hash
 				db.close()
-				resolve(bcrypt.compareSync(password, row.password_hash))
+				resolve(bcrypt.compareSync(password, hash))
 			})
 
 			callback(null, result)
@@ -129,31 +146,15 @@ module.exports = {
 	},
 
 	/**
-	 * @description Used to remove then recreate the password database.
+	 * @description This function is used to get all the relevent data from the database needed to recreate the Express routes.
+	 * @param {function} callback - A callback function where which all the rows from the database are passed to.
 	 */
-	recreateDatabase: async() => {
-		try {
-			await new Promise((resolve, reject) => {
-				fs.unlink(dbName, (error) => {
-					if (error &amp;&amp; error.code !== 'ENOENT') {
-						return reject(new Error(error.message))
-					}
-
-					const db = new database(dbName)
-					db.prepare('CREATE TABLE passwords (email text, password_hash text NOT NULL, file_path text NOT NULL);').run()
-					db.close()
-					resolve()
-				})
-			})
-		} catch(error) {
-			console.error(error)
-		}
-	},
-
 	getAllRoutes: async(callback) => {
 		try {
 			const result = await new Promise((resolve) => {
 				const db = new database(dbName)
+
+				// Get everything from the database
 				const rows = db.prepare('select * from passwords').all()
 				db.close()
 				resolve(rows)
@@ -163,6 +164,17 @@ module.exports = {
 		} catch(error) {
 			callback(error)
 		}
+	},
+
+	createDatabase: () => {
+		if (fs.existsSync(dbName)) {
+			return
+		}
+
+		const db = new database(dbName)
+		db.prepare('CREATE TABLE users (id text PRIMARY KEY NOT NULL, email text)').run()
+		db.prepare('CREATE TABLE passwords (id text NOT NULL, password_hash text NOT NULL, file_path text NOT NULL, FOREIGN KEY(id) REFERENCES users(id));').run()
+		db.close()
 	}
 }
 </code></pre>
@@ -175,13 +187,13 @@ module.exports = {
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-Database.html">Database</a></li><li><a href="module-Garbage%2520Collector.html">Garbage Collector</a></li><li><a href="module-Notify.html">Notify</a></li><li><a href="module-Route%2520Remover.html">Route Remover</a></li></ul><h3>Global</h3><ul><li><a href="global.html#addTempRoutes">addTempRoutes</a></li><li><a href="global.html">downloadFile</a></li><li><a href="global.html">downloadPage</a></li><li><a href="global.html#serveStaticFiles">serveStaticFiles</a></li><li><a href="global.html">sharePage</a></li><li><a href="global.html">uploadFile</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-Database.html">Database</a></li><li><a href="module-File%2520Management.html">File Management</a></li><li><a href="module-Garbage%2520Collector.html">Garbage Collector</a></li><li><a href="module-Notify.html">Notify</a></li><li><a href="module-Route%2520Remover.html">Route Remover</a></li></ul><h3>Global</h3><ul><li><a href="global.html#serveStaticFiles">serveStaticFiles</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.5.5</a> on Tue Apr 10 2018 12:24:07 GMT+0100 (BST)
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.5.5</a> on Tue Apr 10 2018 17:26:53 GMT+0100 (BST)
 </footer>
 
 <script> prettyPrint(); </script>
