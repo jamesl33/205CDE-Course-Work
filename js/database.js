@@ -137,6 +137,9 @@ module.exports = {
 		}
 	},
 
+	/**
+	 * @description If there isn't already a database make one. This is the first thing called when the server starts.
+	 */
 	createDatabase: () => {
 		if (fs.existsSync(dbName)) {
 			return
