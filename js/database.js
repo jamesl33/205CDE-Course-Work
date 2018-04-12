@@ -147,7 +147,7 @@ module.exports = {
 
 		const db = new database(dbName)
 		db.prepare('CREATE TABLE users (id text PRIMARY KEY NOT NULL, email text)').run()
-		db.prepare('CREATE TABLE passwords (id text NOT NULL, password_hash text NOT NULL, file_path text NOT NULL, FOREIGN KEY(id) REFERENCES users(id))').run()
+		db.prepare('CREATE TABLE passwords (id text NOT NULL, file_path text PRIMARY KEY NOT NULL, password_hash text NOT NULL, FOREIGN KEY(id) REFERENCES users(id))').run()
 		db.close()
 	}
 }
