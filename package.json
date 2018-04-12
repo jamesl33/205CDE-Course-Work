@@ -26,7 +26,7 @@
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "lint": "./node_modules/.bin/eslint index.js; ./node_modules/.bin/eslint js/database.js; ./node_modules/.bin/eslint js/express-router-remover.js"
+    "lint": "./node_modules/.bin/eslint index.js; for script in js/*.js; do ./node_modules/.bin/eslint $script; done; for script in public/js/*.js; do ./node_modules/.bin/eslint $script; done"
   },
   "repository": {
     "type": "git",
