@@ -40,7 +40,7 @@ module.exports = {
 				  	from: '',
 				  	to: toEmail,
 				  	subject: 'Private Share File Claimed',
-				  	text: `Your file ${fileName} has been downloaded`
+				  	text: `Your file '${fileName}' has been downloaded`
 				}
 
 				transporter.sendMail(mailOptions, (error) => {
